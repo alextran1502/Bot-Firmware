@@ -15,6 +15,7 @@
 #include "drivers/pinout.h"
 #include "settings.h"
 #include "bot_protocol.h"
+#include "gimbal.h"
 
 
 static void periodic_status(void)
@@ -35,11 +36,9 @@ static void periodic_status(void)
 
 void lwIPHostTimerHandler(void)
 {
-    // Periodic network stats
     periodic_status();
-
-    // Send an updated telemetry packet on every bot tick
-    BotProto_SendTelemetry();
+    Gimbal_Poll();
+    BotProto_Telemetry();
 }
 
 void systick_isr(void)
@@ -60,6 +59,10 @@ int main(void)
                "Tuco Flyer Firmware starting!\n\n");
 
     Settings_Init();
+
+    if (settings.bot_options & BOT_HAS_GIMBAL) {
+        Gimbal_Init(sysclock_hz);
+    }
 
     MAP_SysTickPeriodSet(sysclock_hz / BOT_TICK_HZ);
     MAP_SysTickEnable();

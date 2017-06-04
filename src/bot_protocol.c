@@ -8,19 +8,48 @@
 #include "utils/uartstdio.h"
 #include "settings.h"
 #include "bot_protocol.h"
+#include "gimbal.h"
 
 static struct udp_pcb *bot_udp;
 
 
-static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct ip_addr *addr, u16_t port) {
-    if (p) {
-        UARTprintf("Received buf, %d bytes\n", p->len);
+static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct ip_addr *addr, u16_t port)
+{
+    uint8_t *hdr = p->payload;
+    if (!p->len) {
         pbuf_free(p);
+        return;
     }
+    switch (hdr[0]) {
+
+        case BOT_MSG_LOOPBACK: {
+            // Reply with entire packet including header
+            struct ip_addr ctrl;
+            ctrl.addr = htonl(settings.ip_controller);
+            udp_sendto(bot_udp, p, &ctrl, settings.udp_port);
+            break;
+        }
+
+        case BOT_MSG_GIMBAL: {
+            pbuf_header(p, -1);
+            Gimbal_TxQueue(p);
+            break;
+        }
+
+    }
+    pbuf_free(p);
 }
 
 
-void BotProto_SendTelemetry(void)
+void BotProto_Send(struct pbuf *p)
+{
+    struct ip_addr ctrl;
+    ctrl.addr = htonl(settings.ip_controller);
+    udp_sendto(bot_udp, p, &ctrl, settings.udp_port);
+}
+
+
+void BotProto_Telemetry(void)
 {
     char msg[1024];
     static int n = 0;
@@ -29,9 +58,7 @@ void BotProto_SendTelemetry(void)
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, l, PBUF_RAM);
     memcpy(p->payload, msg, l);
 
-    struct ip_addr ip_dest;
-    ip_dest.addr = htonl(settings.ip_controller);
-    udp_sendto(bot_udp, p, &ip_dest, settings.udp_port);
+    BotProto_Send(p);
     pbuf_free(p);
 }
 

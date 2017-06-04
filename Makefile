@@ -34,8 +34,10 @@ ${COMPILER}/tucoflyer.axf: ${COMPILER}/main.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/pinout.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/bot_protocol.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/settings.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/gimbal.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/vectors.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/lwiplib.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/ringbuf.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/ustdlib.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/uartstdio.o
 ${COMPILER}/tucoflyer.axf: ${ROOT}/driverlib/gcc/libdriver.a
