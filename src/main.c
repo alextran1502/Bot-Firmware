@@ -165,6 +165,22 @@ void console_loop(void)
     }
 }
 
+void lwIPHostTimerHandler(void)
+{
+    if (!console_is_interactive) {
+        uint32_t ip = lwIPLocalIPAddrGet();
+        UARTprintf("IP=%d.%d.%d.%d RX=%x TX=%x\n",
+            (ip >> 0) & 0xff, (ip >> 8) & 0xff, (ip >> 16) & 0xff, (ip >> 24) & 0xff,
+            lwip_stats.link.recv, lwip_stats.link.xmit);
+    }
+}
+
+void systick_isr(void)
+{
+    send_telemetry_packet();
+    lwIPTimer(1000 / SYSTICK_HZ);
+}
+
 int main(void)
 {
     MAP_SysCtlMOSCConfigSet(SYSCTL_MOSC_HIGHFREQ);
@@ -211,27 +227,3 @@ int main(void)
 
     console_loop();
 }
-
-void lwIPHostTimerHandler(void)
-{
-    if (!console_is_interactive) {
-        uint32_t ip = lwIPLocalIPAddrGet();
-        UARTprintf("IP=%d.%d.%d.%d RX=%x TX=%x\n",
-            (ip >> 0) & 0xff, (ip >> 8) & 0xff, (ip >> 16) & 0xff, (ip >> 24) & 0xff,
-            lwip_stats.link.recv, lwip_stats.link.xmit);
-    }
-}
-
-void systick_isr(void)
-{
-    lwIPTimer(1000 / SYSTICK_HZ);
-    send_telemetry_packet();
-}
-
-#ifdef DEBUG
-void __error__(char *pcFilename, uint32_t ui32Line)
-{
-    UARTprintf("ERROR at %s:%d\n", pcFilename, ui32Line);
-    while (1);
-}
-#endif

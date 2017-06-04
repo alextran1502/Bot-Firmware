@@ -186,6 +186,14 @@ void unimplemented_isr()
     while (1);
 }
 
+#ifdef DEBUG
+void __error__(char *pcFilename, uint32_t ui32Line)
+{
+    UARTprintf("ERROR at %s:%d\n", pcFilename, ui32Line);
+    while (1);
+}
+#endif
+
 void startup()
 {
     memcpy(&_data, &_etext, (uint32_t)&_edata - (uint32_t)&_data);
@@ -194,6 +202,3 @@ void startup()
     main();
     while (1);
 }
-
-
-
