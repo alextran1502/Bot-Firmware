@@ -1,13 +1,9 @@
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "inc/hw_ints.h"
-#include "inc/hw_memmap.h"
-#include "inc/hw_nvic.h"
-#include "inc/hw_types.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/gpio.h"
 #include "driverlib/rom_map.h"
@@ -20,48 +16,36 @@
 #include "settings.h"
 #include "bot_protocol.h"
 
-#define SYSTICK_HZ  100
 
-struct udp_pcb *bot_udp_pcb;
-
-
-void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct ip_addr *addr, u16_t port) {
-    if (p) {
-        UARTprintf("Received buf, %d bytes\n", p->len);
-        pbuf_free(p);
-    }
-}
-
-void send_telemetry_packet(void)
+static void periodic_status(void)
 {
-    struct ip_addr ip_dest;
-    ip_dest.addr = htonl(settings.ip_controller);
-
-    char msg[1024];
-    static int n = 0;
-    int l = usnprintf(msg, sizeof msg, "%16d", ++n);
-
-    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, l, PBUF_RAM);
-    memcpy(p->payload, msg, l);
-
-    udp_sendto(bot_udp_pcb, p, &ip_dest, BOT_UDP_PORT);
-    pbuf_free(p);
+    const uint32_t interval = BOT_TICK_HZ;
+    static uint32_t counter = 0;
+    counter++;
+    if (counter >= interval) {
+        counter = 0;
+        if (!console_is_interactive) {
+            uint32_t ip = lwIPLocalIPAddrGet();
+            UARTprintf("IP=%d.%d.%d.%d RX=%x TX=%x\n",
+                (ip >> 0) & 0xff, (ip >> 8) & 0xff, (ip >> 16) & 0xff, (ip >> 24) & 0xff,
+                lwip_stats.link.recv, lwip_stats.link.xmit);
+        }
+    }
 }
 
 void lwIPHostTimerHandler(void)
 {
-    if (!console_is_interactive) {
-        uint32_t ip = lwIPLocalIPAddrGet();
-        UARTprintf("IP=%d.%d.%d.%d RX=%x TX=%x\n",
-            (ip >> 0) & 0xff, (ip >> 8) & 0xff, (ip >> 16) & 0xff, (ip >> 24) & 0xff,
-            lwip_stats.link.recv, lwip_stats.link.xmit);
-    }
+    // Periodic network stats
+    periodic_status();
+
+    // Send an updated telemetry packet on every bot tick
+    BotProto_SendTelemetry();
 }
 
 void systick_isr(void)
 {
-    send_telemetry_packet();
-    lwIPTimer(1000 / SYSTICK_HZ);
+    // Advance lwIP time, asynchronously wake up the ethernet ISR
+    lwIPTimer(1000 / BOT_TICK_HZ);
 }
 
 int main(void)
@@ -77,7 +61,7 @@ int main(void)
 
     Settings_Init();
 
-    MAP_SysTickPeriodSet(sysclock_hz / SYSTICK_HZ);
+    MAP_SysTickPeriodSet(sysclock_hz / BOT_TICK_HZ);
     MAP_SysTickEnable();
     MAP_SysTickIntEnable();
 
@@ -88,9 +72,6 @@ int main(void)
         settings.ip_addr, settings.ip_netmask, settings.ip_gateway,
         IPADDR_USE_STATIC);
 
-    bot_udp_pcb = udp_new();
-    udp_bind(bot_udp_pcb, IP_ADDR_ANY, BOT_UDP_PORT);
-    udp_recv(bot_udp_pcb, udp_received, 0);
-
+    BotProto_Init();
     Settings_Console();
 }

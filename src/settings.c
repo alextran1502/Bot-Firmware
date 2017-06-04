@@ -21,37 +21,75 @@ volatile bool console_is_interactive = false;
 #define EEPROM_OFFSET 0
 
 
+static void console_help(void)
+{
+    UARTprintf("Commands:\n"
+               "  setwinch <number>             Setup winch, save, and reboot\n"
+               "  setflyer                      Setup flyer, save, and reboot\n"
+               "  set <offset> <value>          Just modify a setting, no save\n"
+               "  show                          Show in-memory settings\n"
+               "  save                          Just save in-memory settings\n"
+               "  reboot                        Restart firmware\n"
+               "  exit                          End interaction\n");
+}
+
 static void reboot(void)
 {
     HWREG(NVIC_APINT) = NVIC_APINT_VECTKEY | NVIC_APINT_SYSRESETREQ;
 }
 
-static void complete_setup(void)
+static void save_settings(void)
 {
     MAP_EEPROMProgram((uint32_t*) &settings, EEPROM_OFFSET, sizeof settings);
-    reboot();
+    UARTprintf("Settings saved\n");
+}
+
+static void setup_common(void)
+{
+    memset(&settings, 0, sizeof settings);
+    settings.udp_port = 9024;
+    settings.ip_controller = 0x0a200001;
+    settings.ip_netmask = 0xffffff00;
 }
 
 static void setup_flyer(void)
 {
     UARTprintf("Setting up flyer\n");
-    settings.ip_controller = 0x0a200001;
+    setup_common();
     settings.ip_addr = 0x0a200008;
-    settings.ip_netmask = 0xffffff00;
-    settings.ip_gateway = 0;
     settings.bot_options = BOT_HAS_GIMBAL;
-    complete_setup();
+    save_settings();
+    reboot();
 }
 
-static void setup_winch(int number)
+static void setup_winch(uint32_t number)
 {
     UARTprintf("Setting up winch #%d\n", number);
-    settings.ip_controller = 0x0a200001;
+    setup_common();
     settings.ip_addr = 0x0a20000a + number;
-    settings.ip_netmask = 0xffffff00;
-    settings.ip_gateway = 0;
     settings.bot_options = BOT_HAS_WINCH;
-    complete_setup();
+    save_settings();
+    reboot();
+}
+
+static void show_settings(void)
+{
+    for (unsigned n = 0; n < sizeof settings; n += 4) {
+        UARTprintf("+%02x = %08x\n", n, ((uint32_t*)&settings)[n>>2]);
+    }
+}
+
+static void set_value(uint32_t offset, uint32_t value)
+{
+    if (offset & 3) {
+        UARTprintf("Offset must be word aligned\n");
+        return;
+    }
+    if (offset >= sizeof settings) {
+        UARTprintf("Offset out of range\n");
+        return;
+    }
+    ((uint32_t*)&settings)[offset>>2] = value;
 }
 
 static void console_command(char *line)
@@ -74,11 +112,16 @@ static void console_command(char *line)
         return;
     }
 
+    if (!strcmp(command, "save")) {
+        save_settings();
+        return;
+    }
+
     if (!strcmp(command, "setwinch")) {
-        char *endptr;
         char *arg = strtok_r(0, delim, &tokens);
         if (arg) {
-            int number = strtol(arg, &endptr, 0);
+            char *endptr;
+            uint32_t number = strtoul(arg, &endptr, 0);
             if (!*endptr) {
                 setup_winch(number);
                 return;
@@ -92,19 +135,26 @@ static void console_command(char *line)
         return;
     }
 
-    if (!strcmp(command, "show")) {
-        for (unsigned n = 0; n < sizeof settings; n += 4) {
-            UARTprintf("+%02x = %08x\n", n, ((uint32_t*)&settings)[n>>2]);
+    if (!strcmp(command, "set")) {
+        char *arg0 = strtok_r(0, delim, &tokens);
+        char *arg1 = strtok_r(0, delim, &tokens);
+        if (arg0 && arg1) {
+            char *e1, *e2;
+            uint32_t num0 = strtoul(arg0, &e1, 0);
+            uint32_t num1 = strtoul(arg1, &e2, 0);
+            if (!*e1 && !*e2) {
+                set_value(num0, num1);
+                return;
+            }
         }
+    }
+
+    if (!strcmp(command, "show")) {
+        show_settings();
         return;
     }
 
-    UARTprintf("Commands:\n"
-               "  setwinch <number>\n"
-               "  setflyer\n"
-               "  show\n"
-               "  reboot\n"
-               "  exit\n");
+    console_help();
 }
 
 void Settings_Init()
@@ -128,11 +178,6 @@ void Settings_Init()
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
     MAP_EEPROMInit();
     MAP_EEPROMRead((uint32_t*) &settings, EEPROM_OFFSET, sizeof settings);
-}
-
-void Settings_Write()
-{
-    MAP_EEPROMProgram((uint32_t*) &settings, EEPROM_OFFSET, sizeof settings);
 }
 
 void Settings_Console()

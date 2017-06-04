@@ -7,6 +7,7 @@
 #define BOT_HAS_WINCH           (1 << 1)
 
 struct settings_t {
+    uint32_t udp_port;
     uint32_t ip_addr;
     uint32_t ip_netmask;
     uint32_t ip_gateway;
@@ -19,5 +20,4 @@ extern uint8_t mac_address[8];
 extern volatile bool console_is_interactive;
 
 void Settings_Init();
-void Settings_Write();
 void Settings_Console();

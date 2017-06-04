@@ -32,6 +32,7 @@ ${COMPILER}:
 
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/main.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/pinout.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/bot_protocol.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/settings.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/vectors.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/lwiplib.o
