@@ -32,8 +32,10 @@ ${COMPILER}:
 
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/main.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/pinout.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/settings.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/vectors.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/lwiplib.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/ustdlib.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/uartstdio.o
 ${COMPILER}/tucoflyer.axf: ${ROOT}/driverlib/gcc/libdriver.a
 ${COMPILER}/tucoflyer.axf: src/tm4c1294xl.ld
