@@ -1,3 +1,5 @@
+gcc/
+
 # Compiled Object files
 *.slo
 *.lo
