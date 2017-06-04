@@ -109,7 +109,86 @@ void Gimbal_Poll(void)
 
 static bool gimbal_packet_detect(uint8_t c)
 {
-	// to do
+	// Simple packet detector FSM. Supports both long (bootloader) and short (normal) formats.
+	// 55 AA <target> <cmd> <len16> <data> <crc16>
+	// A5 5A <target> <cmd> <len8> <data> <crc16>
+
+	static uint8_t state = 0;
+	static uint16_t length = 0;
+	const uint16_t max_len = 0x500;
+
+	switch (state) {
+
+		case 0:	// Idle
+			if (c == 0x55) {
+				state = 1;
+			} else if (c == 0xA5) {
+				state = 2;
+			}
+			break;
+
+		case 1:	// 55
+			if (c == 0xAA) {
+				state = 3;
+			} else if (c == 0x55) {
+				state = 1;
+			} else if (c == 0xA5) {
+				state = 2;
+			} else {
+				state = 0;
+			}
+			break;
+
+		case 2:	// A5
+			if (c == 0x5A) {
+				state = 7;
+			} else if (c == 0x55) {
+				state = 1;
+			} else if (c == 0xA5) {
+				state = 2;
+			} else {
+				state = 0;
+			}
+			break;
+
+		case 3:	// 55 AA +target
+		case 4: // 55 AA target +cmd
+			state++;
+			break;
+
+		case 5: // 55 AA target cmd +lenL
+			length = c;
+			state++;
+			break;
+
+		case 6: // 55 AA target cmd lenL +lenH
+			length |= c << 8;
+			state = length < max_len ? 10 : 0;
+			break;
+
+		case 7:	// A5 5A +target
+		case 8: // A5 5A target +cmd
+			state++;
+			break;
+
+		case 9: // A5 5A target cmd +len
+			length = c;
+			state++;
+			break;
+
+		case 10: // Wait for payload + first CRC byte
+			if (length) {
+				length--;
+			} else {
+				state++;
+			}
+			break;
+
+		case 11: // Last CRC byte
+			state = 0;
+			return true;
+	}
+
 	return false;
 }
 

@@ -51,6 +51,10 @@ void BotProto_Send(struct pbuf *p)
 
 void BotProto_Telemetry(void)
 {
+    if (settings.debug_flags & DBGF_NO_TELEMETRY) {
+        return;
+    }
+
     char msg[1024];
     static int n = 0;
     int l = usnprintf(msg, sizeof msg, "%16d", ++n);
