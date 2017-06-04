@@ -34,13 +34,13 @@ ${COMPILER}/tucoflyer.axf: ${COMPILER}/main.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/pinout.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/vectors.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/lwiplib.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/uartstdio.o
 ${COMPILER}/tucoflyer.axf: ${ROOT}/driverlib/gcc/libdriver.a
-${COMPILER}/tucoflyer.axf: ${ROOT}/utils/uartstdio.o
 ${COMPILER}/tucoflyer.axf: src/tm4c1294xl.ld
 SCATTERgcc_tucoflyer=src/tm4c1294xl.ld
 ENTRY_tucoflyer=startup
 
-CFLAGSgcc=-DTARGET_IS_TM4C129_RA0
+CFLAGSgcc=-DTARGET_IS_TM4C129_RA0 -DUART_BUFFERED
 
 ifneq (${MAKECMDGOALS},clean)
 -include ${wildcard ${COMPILER}/*.d} __dummy__

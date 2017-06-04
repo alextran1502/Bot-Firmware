@@ -17,6 +17,7 @@ uint32_t stack_segment[512];
 
 extern int main(void);
 extern void systick_isr(void);
+extern void UARTStdioIntHandler(void);
 
 void startup(void);
 void unimplemented_isr(void);
@@ -44,7 +45,7 @@ __attribute__ ((section(".isr_vector"))) const ivt_t ivt[] = {
     unimplemented_isr,              // INT_GPIOC_TM4C123
     unimplemented_isr,              // INT_GPIOD_TM4C123
     unimplemented_isr,              // INT_GPIOE_TM4C123
-    unimplemented_isr,              // INT_UART0_TM4C123
+    UARTStdioIntHandler,            // INT_UART0_TM4C123
     unimplemented_isr,              // INT_UART1_TM4C123
     unimplemented_isr,              // INT_SSI0_TM4C123
     unimplemented_isr,              // INT_I2C0_TM4C123
