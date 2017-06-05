@@ -1,5 +1,8 @@
 gcc/
 
+.DS_STore
+._.DS_STore
+
 # Compiled Object files
 *.slo
 *.lo
