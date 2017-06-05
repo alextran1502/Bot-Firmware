@@ -14,10 +14,13 @@
 #include "driverlib/sysctl.h"
 #include "utils/uartstdio.h"
 #include "settings.h"
-#include "lidar.h"
+#include "leds.h"
 
 
-void Lidar_Init(uint32_t sysclock_hz, struct lidar_telemetry *state_out)
+void LEDs_Init(uint32_t sysclock_hz)
 {
 }
 
+void LEDs_Command(struct pbuf *p)
+{
+}

@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include "lidar.h"
 #include "analog.h"
+#include "imu.h"
+#include "xband.h"
 
 struct pbuf;
 
@@ -19,10 +21,12 @@ struct pbuf;
 #define BOT_MSG_LEDS            0x05        // struct bot_leds
 
 struct flyer_sensors {
+    struct xband_telemetry xband;
     struct lidar_telemetry lidar;
     struct analog_telemetry analog;
+    struct imu_telemetry imu;
 };
 
 void BotProto_Init(void);
-void BotProto_SendCopy(uint8_t type, void *data, uint32_t len);     // Called in lwIP context
-void BotProto_Send(struct pbuf *p);                                 // Called in lwIP context
+void BotProto_SendCopy(uint8_t type, const void *data, uint32_t len);   // Called in lwIP context
+void BotProto_Send(struct pbuf *p);                                     // Called in lwIP context

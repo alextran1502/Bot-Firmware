@@ -14,10 +14,9 @@
 #include "driverlib/sysctl.h"
 #include "utils/uartstdio.h"
 #include "settings.h"
-#include "lidar.h"
+#include "xband.h"
 
-
-void Lidar_Init(uint32_t sysclock_hz, struct lidar_telemetry *state_out)
+void XBand_Init(uint32_t sysclock_hz, struct xband_telemetry *state_out)
 {
-}
 
+}

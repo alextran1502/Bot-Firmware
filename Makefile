@@ -36,6 +36,11 @@ ${COMPILER}/tucoflyer.axf: ${COMPILER}/bot_protocol.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/settings.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/vectors.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/lidar.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/xband.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/leds.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/winch.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/force_hx711.o
+${COMPILER}/tucoflyer.axf: ${COMPILER}/imu_bno055.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/analog.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/gimbal.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/lwiplib.o

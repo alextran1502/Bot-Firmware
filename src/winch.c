@@ -14,10 +14,22 @@
 #include "driverlib/sysctl.h"
 #include "utils/uartstdio.h"
 #include "settings.h"
-#include "lidar.h"
+#include "winch.h"
+#include "force.h"
+
+static struct winch_status winchstat;
 
 
-void Lidar_Init(uint32_t sysclock_hz, struct lidar_telemetry *state_out)
+void Winch_Init(uint32_t sysclock_hz)
 {
+	Force_Init(sysclock_hz, &winchstat.force);
 }
 
+const struct winch_status* Winch_GetStatus()
+{
+	return &winchstat;
+}
+
+void Winch_Command(struct pbuf *p)
+{
+}

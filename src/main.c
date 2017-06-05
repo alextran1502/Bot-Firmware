@@ -18,6 +18,9 @@
 #include "settings.h"
 #include "bot_protocol.h"
 #include "gimbal.h"
+#include "imu.h"
+#include "leds.h"
+#include "winch.h"
 
 struct flyer_sensors flyer_sensor_buffer;
 
@@ -50,7 +53,7 @@ void lwIPHostTimerHandler(void)
             BotProto_SendCopy(BOT_MSG_FLYER_SENSORS, &flyer_sensor_buffer, sizeof flyer_sensor_buffer);
         }
         if (settings.bot_options & BOT_HAS_WINCH) {
-            BotProto_SendCopy(BOT_MSG_WINCH_STATUS, "todo", 4);
+            BotProto_SendCopy(BOT_MSG_WINCH_STATUS, Winch_GetStatus(), sizeof(struct winch_status));
         }
     }
 }
@@ -92,7 +95,17 @@ int main(void)
         Gimbal_Init(sysclock_hz);
     }
 
+    if (settings.bot_options & BOT_HAS_WINCH) {
+        Winch_Init(sysclock_hz);
+    }
+
+    if (settings.bot_options & BOT_HAS_LEDS) {
+        LEDs_Init(sysclock_hz);
+    }
+
     if (settings.bot_options & BOT_HAS_FLYER_SENSORS) {
+        XBand_Init(sysclock_hz, &flyer_sensor_buffer.xband);
+        IMU_Init(sysclock_hz, &flyer_sensor_buffer.imu);
         Lidar_Init(sysclock_hz, &flyer_sensor_buffer.lidar);
         Analog_Init(sysclock_hz, &flyer_sensor_buffer.analog);
     }
@@ -101,8 +114,8 @@ int main(void)
     MAP_SysTickEnable();
     MAP_SysTickIntEnable();
 
-    MAP_IntPrioritySet(INT_EMAC0,       0xC0);
-    MAP_IntPrioritySet(FAULT_SYSTICK,   0x80);
+    MAP_IntPrioritySet(INT_EMAC0,      0xC0);
+    MAP_IntPrioritySet(FAULT_SYSTICK,  0x80);
 
     lwIPInit(sysclock_hz, mac_address,
         settings.ip_addr, settings.ip_netmask, settings.ip_gateway,

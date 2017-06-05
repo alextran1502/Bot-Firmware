@@ -14,10 +14,9 @@
 #include "driverlib/sysctl.h"
 #include "utils/uartstdio.h"
 #include "settings.h"
-#include "lidar.h"
+#include "imu.h"
 
 
-void Lidar_Init(uint32_t sysclock_hz, struct lidar_telemetry *state_out)
+void IMU_Init(uint32_t sysclock_hz, struct imu_telemetry *state_out)
 {
 }
-

@@ -9,6 +9,8 @@
 #include "settings.h"
 #include "bot_protocol.h"
 #include "gimbal.h"
+#include "winch.h"
+#include "leds.h"
 
 static struct udp_pcb *bot_udp;
 
@@ -36,6 +38,18 @@ static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct 
             break;
         }
 
+        case BOT_MSG_LEDS: {
+            pbuf_header(p, -1);
+            LEDs_Command(p);
+            break;
+        }
+
+        case BOT_MSG_WINCH_COMMAND: {
+            pbuf_header(p, -1);
+            Winch_Command(p);
+            break;
+        }
+
     }
     pbuf_free(p);
 }
@@ -49,7 +63,7 @@ void BotProto_Send(struct pbuf *p)
 }
 
 
-void BotProto_SendCopy(uint8_t type, void *data, uint32_t len)
+void BotProto_SendCopy(uint8_t type, const void *data, uint32_t len)
 {
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, len+1, PBUF_RAM);
     uint8_t *bytes = (uint8_t*) p->payload;
