@@ -8,7 +8,7 @@
 struct pbuf;
 
 // Main control loop speed and Systick rate
-#define BOT_TICK_HZ             200
+#define BOT_TICK_HZ             250
 
 // UDP packet header byte
 #define BOT_MSG_LOOPBACK        0x20        // Entire packet is looped back to controller

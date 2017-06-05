@@ -4,11 +4,13 @@
 #include <stdio.h>
 #include <string.h>
 #include "inc/hw_ints.h"
+#include "inc/hw_memmap.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/gpio.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/systick.h"
+#include "driverlib/watchdog.h"
 #include "utils/lwiplib.h"
 #include "utils/ustdlib.h"
 #include "utils/uartstdio.h"
@@ -57,12 +59,26 @@ void systick_isr(void)
 {
     // Advance lwIP time, asynchronously wake up the ethernet ISR
     lwIPTimer(1000 / BOT_TICK_HZ);
+
+    // Pat watchdog only when we're successfully transmitting telemetry (or that's disabled for debug)
+    uint16_t xmit = lwip_stats.link.xmit;
+    static uint16_t last_xmit;
+    if (xmit != last_xmit || (settings.debug_flags & DBGF_NO_TELEMETRY)) {
+        last_xmit = xmit;
+        MAP_WatchdogIntClear(WATCHDOG0_BASE);
+    }
 }
 
 int main(void)
 {
     MAP_SysCtlMOSCConfigSet(SYSCTL_MOSC_HIGHFREQ);
     uint32_t sysclock_hz = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480), 120000000);
+
+    // Watchdog timeout is based on a multiple of the usual tick rate
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    MAP_WatchdogReloadSet(WATCHDOG0_BASE, sysclock_hz / (BOT_TICK_HZ / 4));
+    MAP_WatchdogResetEnable(WATCHDOG0_BASE);
+    MAP_WatchdogEnable(WATCHDOG0_BASE);
 
     PinoutSet(true, false);
 
