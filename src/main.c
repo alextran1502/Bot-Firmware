@@ -34,10 +34,37 @@ static void periodic_status(void)
         counter = 0;
         if (!console_is_interactive) {
             uint32_t ip = lwIPLocalIPAddrGet();
+
             UARTprintf("IP=%d.%d.%d.%d RX=%x TX=%x\n",
                 (ip >> 0) & 0xff, (ip >> 8) & 0xff, (ip >> 16) & 0xff, (ip >> 24) & 0xff,
                 lwip_stats.link.recv, lwip_stats.link.xmit);
         }
+    }
+}
+
+static void tick_watchdog(void)
+{
+    // At minimum, resetting the watchdog requires a stream of systicks.
+    // If telemetry is enabled and we've seen the network connection active
+    // at all in the past, additionally require some data to be transmitted
+    // successfully before we'll pat the dog.
+
+    uint16_t xmit = lwip_stats.link.xmit;
+    static uint16_t last_xmit = 0;
+    bool seen_xmit = false;
+    bool telemetry_disabled = !!(settings.debug_flags & DBGF_NO_TELEMETRY);
+    static bool ever_seen_xmit = false;
+
+    if (xmit != last_xmit) {
+        if (last_xmit != 0) {
+            seen_xmit = true;
+            ever_seen_xmit = true;
+        }
+        last_xmit = xmit;
+    }
+
+    if (telemetry_disabled || !ever_seen_xmit || seen_xmit) {
+        MAP_WatchdogIntClear(WATCHDOG0_BASE);
     }
 }
 
@@ -63,13 +90,8 @@ void systick_isr(void)
     // Advance lwIP time, asynchronously wake up the ethernet ISR
     lwIPTimer(1000 / BOT_TICK_HZ);
 
-    // Pat watchdog only when we're successfully transmitting telemetry (or that's disabled for debug)
-    uint16_t xmit = lwip_stats.link.xmit;
-    static uint16_t last_xmit;
-    if (xmit != last_xmit || (settings.debug_flags & DBGF_NO_TELEMETRY)) {
-        last_xmit = xmit;
-        MAP_WatchdogIntClear(WATCHDOG0_BASE);
-    }
+    // Check network stats, maybe pat watchdog
+    tick_watchdog();
 }
 
 int main(void)

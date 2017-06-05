@@ -19,7 +19,7 @@
 #define ADC_SEQINT      INT_ADC0SS0
 #define ADC_PERIPH      SYSCTL_PERIPH_ADC0
 
-static struct analog_telemetry *analog_buffer_ptr;
+static struct analog_telemetry *analog_buffer;
 
 static const uint32_t analog_channels[NUM_ANALOG_SENSORS] =
 {
@@ -30,7 +30,7 @@ static const uint32_t analog_channels[NUM_ANALOG_SENSORS] =
 
 void Analog_Init(uint32_t sysclock_hz, struct analog_telemetry *state_out)
 {
-    analog_buffer_ptr = state_out;
+    analog_buffer = state_out;
 
     MAP_SysCtlPeripheralEnable(ADC_PERIPH);
     MAP_GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0);
@@ -42,11 +42,11 @@ void Analog_Init(uint32_t sysclock_hz, struct analog_telemetry *state_out)
 
     for (unsigned seq = 0; seq < NUM_ANALOG_SENSORS; seq++) {
         uint32_t flags = seq == (NUM_ANALOG_SENSORS - 1) ? ADC_CTL_IE | ADC_CTL_END : 0;
-        MAP_ADCSequenceStepConfigure(ADC_BASE, 0, seq, flags);
+        MAP_ADCSequenceStepConfigure(ADC_BASE, 0, seq, analog_channels[seq] | flags);
     }
 
     MAP_ADCSequenceEnable(ADC_BASE, 0);
-    MAP_ADCSequenceDataGet(ADC_BASE, 0, analog_buffer_ptr->values);
+    MAP_ADCSequenceDataGet(ADC_BASE, 0, analog_buffer->values);
     MAP_ADCIntClear(ADC_BASE, 0);
     MAP_ADCIntEnable(ADC_BASE, 0);
     MAP_IntEnable(ADC_SEQINT);
@@ -56,6 +56,6 @@ void Analog_Init(uint32_t sysclock_hz, struct analog_telemetry *state_out)
 void Analog_SeqIrq(void)
 {
     MAP_ADCIntClear(ADC_BASE, 0);
-    MAP_ADCSequenceDataGet(ADC_BASE, 0, analog_buffer_ptr->values);
-    analog_buffer_ptr->counter++;
+    MAP_ADCSequenceDataGet(ADC_BASE, 0, analog_buffer->values);
+    analog_buffer->counter++;
 }

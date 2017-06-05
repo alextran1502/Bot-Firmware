@@ -9,6 +9,7 @@
 #include "gimbal.h"
 #include "analog.h"
 #include "winch.h"
+#include "xband.h"
 
 extern uint32_t _etext;
 extern uint32_t _data;
@@ -68,7 +69,7 @@ __attribute__ ((section(".isr_vector"))) const ivt_t ivt[] = {
     unimplemented_isr,              // INT_ADC0SS3_TM4C123
     unimplemented_isr,              // INT_WATCHDOG_TM4C123
     unimplemented_isr,              // INT_TIMER0A_TM4C123
-    unimplemented_isr,              // INT_TIMER0B_TM4C123
+    XBand_TimerIrq,                 // INT_TIMER0B_TM4C123
     unimplemented_isr,              // INT_TIMER1A_TM4C123
     unimplemented_isr,              // INT_TIMER1B_TM4C123
     unimplemented_isr,              // INT_TIMER2A_TM4C123
