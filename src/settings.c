@@ -57,7 +57,7 @@ static void setup_flyer(void)
     UARTprintf("Setting up flyer\n");
     setup_common();
     settings.ip_addr = 0x0a200008;
-    settings.bot_options = BOT_HAS_GIMBAL;
+    settings.bot_options = BOT_HAS_GIMBAL | BOT_HAS_FLYER_SENSORS | BOT_HAS_LEDS;
     save_settings();
     reboot();
 }
@@ -67,7 +67,7 @@ static void setup_winch(uint32_t number)
     UARTprintf("Setting up winch #%d\n", number);
     setup_common();
     settings.ip_addr = 0x0a20000a + number;
-    settings.bot_options = BOT_HAS_WINCH;
+    settings.bot_options = BOT_HAS_WINCH | BOT_HAS_LEDS;
     save_settings();
     reboot();
 }

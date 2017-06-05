@@ -21,6 +21,12 @@
 #include "gimbal.h"
 #include "bot_protocol.h"
 
+// UART RX on PC4, UART TX on PC5
+#define GIMBAL_BAUD             115200
+#define GIMBAL_UART_BASE        UART7_BASE
+#define GIMBAL_UART_INT         INT_UART7
+#define GIMBAL_UART_PERIPH      SYSCTL_PERIPH_UART7
+
 static bool gimbal_initialized = false;
 static bool gimbal_rx_flush = false;
 static tRingBufObject gimbal_tx_ring;

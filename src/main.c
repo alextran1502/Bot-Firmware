@@ -17,6 +17,8 @@
 #include "bot_protocol.h"
 #include "gimbal.h"
 
+struct flyer_sensors flyer_sensor_buffer;
+
 
 static void periodic_status(void)
 {
@@ -38,7 +40,17 @@ void lwIPHostTimerHandler(void)
 {
     periodic_status();
     Gimbal_Poll();
-    BotProto_Telemetry();
+
+    if (!(settings.debug_flags & DBGF_NO_TELEMETRY)) {
+        // Send out telemetry, depending on the robot options
+
+        if (settings.bot_options & BOT_HAS_FLYER_SENSORS) {
+            BotProto_SendCopy(BOT_MSG_FLYER_SENSORS, &flyer_sensor_buffer, sizeof flyer_sensor_buffer);
+        }
+        if (settings.bot_options & BOT_HAS_WINCH) {
+            BotProto_SendCopy(BOT_MSG_WINCH_STATUS, "todo", 4);
+        }
+    }
 }
 
 void systick_isr(void)
@@ -62,6 +74,11 @@ int main(void)
 
     if (settings.bot_options & BOT_HAS_GIMBAL) {
         Gimbal_Init(sysclock_hz);
+    }
+
+    if (settings.bot_options & BOT_HAS_FLYER_SENSORS) {
+        Lidar_Init(sysclock_hz, &flyer_sensor_buffer.lidar);
+        Analog_Init(sysclock_hz, &flyer_sensor_buffer.analog);
     }
 
     MAP_SysTickPeriodSet(sysclock_hz / BOT_TICK_HZ);

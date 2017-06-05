@@ -49,19 +49,12 @@ void BotProto_Send(struct pbuf *p)
 }
 
 
-void BotProto_Telemetry(void)
+void BotProto_SendCopy(uint8_t type, void *data, uint32_t len)
 {
-    if (settings.debug_flags & DBGF_NO_TELEMETRY) {
-        return;
-    }
-
-    char msg[1024];
-    static int n = 0;
-    int l = usnprintf(msg, sizeof msg, "%16d", ++n);
-
-    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, l, PBUF_RAM);
-    memcpy(p->payload, msg, l);
-
+    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, len+1, PBUF_RAM);
+    uint8_t *bytes = (uint8_t*) p->payload;
+    bytes[0] = type;
+    memcpy(bytes+1, data, len);
     BotProto_Send(p);
     pbuf_free(p);
 }
