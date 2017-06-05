@@ -72,6 +72,7 @@ void lwIPHostTimerHandler(void)
 {
     periodic_status();
     Gimbal_Poll();
+    XBand_Poll();
 
     if (!(settings.debug_flags & DBGF_NO_TELEMETRY)) {
         // Send out telemetry, depending on the robot options
@@ -99,17 +100,12 @@ int main(void)
     MAP_SysCtlMOSCConfigSet(SYSCTL_MOSC_HIGHFREQ);
     uint32_t sysclock_hz = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480), 120000000);
 
-    // Watchdog timeout is based on a multiple of the usual tick rate
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
-    MAP_WatchdogReloadSet(WATCHDOG0_BASE, sysclock_hz / (BOT_TICK_HZ / 4));
-    MAP_WatchdogResetEnable(WATCHDOG0_BASE);
-    MAP_WatchdogEnable(WATCHDOG0_BASE);
-
     PinoutSet(true, false);
 
     UARTStdioConfig(0, 115200, sysclock_hz);
     UARTprintf("\n\n====\n"
                "Tuco Flyer Firmware starting!\n\n");
+    UARTFlushTx(false);
 
     Settings_Init();
 
@@ -131,6 +127,11 @@ int main(void)
         Lidar_Init(sysclock_hz, &flyer_sensor_buffer.lidar);
         Analog_Init(sysclock_hz, &flyer_sensor_buffer.analog);
     }
+
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    MAP_WatchdogReloadSet(WATCHDOG0_BASE, sysclock_hz / (BOT_TICK_HZ / 4));
+    MAP_WatchdogResetEnable(WATCHDOG0_BASE);
+    MAP_WatchdogEnable(WATCHDOG0_BASE);
 
     MAP_SysTickPeriodSet(sysclock_hz / BOT_TICK_HZ);
     MAP_SysTickEnable();

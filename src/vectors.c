@@ -126,31 +126,31 @@ void unimplemented_isr()
 
 void fault_nmi(void)
 {
-    UARTprintf("FAULT: NMI\n");
+    UARTprintf("fN\n");
     while (1);
 }
 
 void fault_hard(void)
 {
-    UARTprintf("FAULT: HARD\n");
+    UARTprintf("fH\n");
     while (1);
 }
 
 void fault_mpu(void)
 {
-    UARTprintf("FAULT: MPU\n");
+    UARTprintf("fM\n");
     while (1);
 }
 
 void fault_bus(void)
 {
-    UARTprintf("FAULT: BUS\n");
+    UARTprintf("fB\n");
     while (1);
 }
 
 void fault_usage(void)
 {
-    UARTprintf("FAULT: USAGE\n");
+    UARTprintf("fU\n");
     while (1);
 }
 
