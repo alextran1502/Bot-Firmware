@@ -8,6 +8,7 @@
 #include "utils/uartstdio.h"
 #include "gimbal.h"
 #include "analog.h"
+#include "winch.h"
 
 extern uint32_t _etext;
 extern uint32_t _data;
@@ -60,7 +61,7 @@ __attribute__ ((section(".isr_vector"))) const ivt_t ivt[] = {
     unimplemented_isr,              // INT_PWM0_0_TM4C123
     unimplemented_isr,              // INT_PWM0_1_TM4C123
     unimplemented_isr,              // INT_PWM0_2_TM4C123
-    unimplemented_isr,              // INT_QEI0_TM4C123
+    Winch_QEIIrq,                   // INT_QEI0_TM4C123
     Analog_SeqIrq,                  // INT_ADC0SS0_TM4C123
     unimplemented_isr,              // INT_ADC0SS1_TM4C123
     unimplemented_isr,              // INT_ADC0SS2_TM4C123
