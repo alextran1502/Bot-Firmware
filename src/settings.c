@@ -178,6 +178,11 @@ void Settings_Init()
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
     MAP_EEPROMInit();
     MAP_EEPROMRead((uint32_t*) &settings, EEPROM_OFFSET, sizeof settings);
+
+    if (settings.debug_flags & DBGF_SETTINGS_INVALID) {
+        // Default to all zeroes if unprogrammed
+        memset(&settings, 0, sizeof settings);
+    }
 }
 
 void Settings_Console()

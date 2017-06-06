@@ -9,6 +9,7 @@
 #define BOT_HAS_LEDS            (1 << 3)
 
 #define DBGF_NO_TELEMETRY       (1 << 0)
+#define DBGF_SETTINGS_INVALID   (1 << 31)
 
 
 struct settings_t {
