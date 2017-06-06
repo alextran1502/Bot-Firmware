@@ -11,6 +11,7 @@
 #include "winch.h"
 #include "xband.h"
 #include "lidar.h"
+#include "imu.h"
 
 extern uint32_t _etext;
 extern uint32_t _data;
@@ -58,7 +59,7 @@ __attribute__ ((section(".isr_vector"))) const ivt_t ivt[] = {
     UARTStdioIntHandler,            // INT_UART0_TM4C123
     unimplemented_isr,              // INT_UART1_TM4C123
     unimplemented_isr,              // INT_SSI0_TM4C123
-    unimplemented_isr,              // INT_I2C0_TM4C123
+    IMU_I2CIrq,                     // INT_I2C0_TM4C123
     unimplemented_isr,              // INT_PWM0_FAULT_TM4C123
     unimplemented_isr,              // INT_PWM0_0_TM4C123
     unimplemented_isr,              // INT_PWM0_1_TM4C123

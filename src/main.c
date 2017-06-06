@@ -77,6 +77,7 @@ void lwIPHostTimerHandler(void)
     periodic_status();
     Gimbal_Poll();
     XBand_Poll();
+    IMU_Poll();
 
     if (!(settings.debug_flags & DBGF_NO_TELEMETRY)) {
         // Send out telemetry, depending on the robot options

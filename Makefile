@@ -47,6 +47,7 @@ ${COMPILER}/tucoflyer.axf: ${COMPILER}/lwiplib.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/ringbuf.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/ustdlib.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/uartstdio.o
+${COMPILER}/tucoflyer.axf: ${ROOT}/sensorlib/gcc/libsensor.a
 ${COMPILER}/tucoflyer.axf: ${ROOT}/driverlib/gcc/libdriver.a
 ${COMPILER}/tucoflyer.axf: src/tm4c1294xl.ld
 SCATTERgcc_tucoflyer=src/tm4c1294xl.ld
