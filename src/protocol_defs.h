@@ -43,6 +43,7 @@ struct imu_telemetry {
     uint8_t temperature;
     uint8_t calibration_stat;
     uint8_t reserved[2];
+    uint32_t counter;
 };
 
 struct flyer_sensors {
