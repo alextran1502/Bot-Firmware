@@ -7,7 +7,7 @@
 #include "utils/ustdlib.h"
 #include "utils/uartstdio.h"
 #include "settings.h"
-#include "bot_protocol.h"
+#include "botproto.h"
 #include "gimbal.h"
 #include "winch.h"
 #include "leds.h"

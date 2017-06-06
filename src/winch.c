@@ -15,7 +15,6 @@
 #include "driverlib/sysctl.h"
 #include "utils/uartstdio.h"
 #include "settings.h"
-#include "bot_protocol.h"
 #include "winch.h"
 #include "force.h"
 

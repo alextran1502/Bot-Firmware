@@ -10,6 +10,7 @@
 #include "analog.h"
 #include "winch.h"
 #include "xband.h"
+#include "lidar.h"
 
 extern uint32_t _etext;
 extern uint32_t _data;
@@ -84,8 +85,8 @@ __attribute__ ((section(".isr_vector"))) const ivt_t ivt[] = {
     unimplemented_isr,              // INT_GPIOH_TM4C123
     unimplemented_isr,              // INT_UART2_TM4C123
     unimplemented_isr,              // INT_SSI1_TM4C123
-    unimplemented_isr,              // INT_TIMER3A_TM4C123
-    unimplemented_isr,              // INT_TIMER3B_TM4C123
+    Lidar_Timer3AIrq,               // INT_TIMER3A_TM4C123
+    Lidar_Timer3BIrq,               // INT_TIMER3B_TM4C123
     unimplemented_isr,              // INT_I2C1_TM4C123
     unimplemented_isr,              // INT_CAN0_TM4C123
     unimplemented_isr,              // INT_CAN1_TM4C123
@@ -114,8 +115,8 @@ __attribute__ ((section(".isr_vector"))) const ivt_t ivt[] = {
     unimplemented_isr,              // INT_I2C3_TM4C123
     unimplemented_isr,              // INT_TIMER4A_TM4C123
     unimplemented_isr,              // INT_TIMER4B_TM4C123
-    unimplemented_isr,              // INT_TIMER5A_TM4C123
-    unimplemented_isr,              // INT_TIMER5B_TM4C123
+    Lidar_Timer5AIrq,               // INT_TIMER5A_TM4C123
+    Lidar_Timer5BIrq,               // INT_TIMER5B_TM4C123
 };
 
 void unimplemented_isr()

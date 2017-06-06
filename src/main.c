@@ -16,11 +16,15 @@
 #include "utils/uartstdio.h"
 #include "drivers/pinout.h"
 #include "settings.h"
-#include "bot_protocol.h"
+#include "botproto.h"
 #include "gimbal.h"
 #include "imu.h"
 #include "leds.h"
 #include "winch.h"
+#include "xband.h"
+#include "analog.h"
+#include "lidar.h"
+#include "protocol_defs.h"
 
 struct flyer_sensors flyer_sensor_buffer;
 
