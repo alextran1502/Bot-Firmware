@@ -33,16 +33,7 @@ struct analog_telemetry {
 };
 
 struct imu_telemetry {
-    int16_t accel[3];
-    int16_t mag[3];
-    int16_t gyro[3];
-    int16_t euler[3];
-    int16_t quat[4];
-    int16_t linacc[3];
-    int16_t gravity[3];
-    uint8_t temperature;
-    uint8_t calibration_stat;
-    uint8_t reserved[2];
+    uint8_t bno055[48];
     uint32_t counter;
 };
 

@@ -7,6 +7,7 @@
 #include "inc/hw_memmap.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/gpio.h"
+#include "driverlib/udma.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/systick.h"
@@ -25,6 +26,8 @@
 #include "analog.h"
 #include "lidar.h"
 #include "protocol_defs.h"
+
+tDMAControlTable dma_control_table[64] __attribute__((aligned(1024)));
 
 struct flyer_sensors flyer_sensor_buffer;
 
@@ -111,6 +114,11 @@ int main(void)
     UARTprintf("\n\n====\n"
                "Tuco Flyer Firmware starting!\n\n");
     UARTFlushTx(false);
+
+    // Turn on uDMA and give it some scratchpad RAM
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UDMA);
+    MAP_uDMAEnable();
+    MAP_uDMAControlBaseSet(dma_control_table);
 
     Settings_Init();
 
