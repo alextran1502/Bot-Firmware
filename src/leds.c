@@ -37,11 +37,15 @@ void LEDs_Init(uint32_t sysclock_hz)
 {
     memset(&led_buffer.start, 0x00, sizeof led_buffer.start);
     memset(&led_buffer.end, 0xFF, sizeof led_buffer.end);
+    for (unsigned i = 0; i < LED_MAX_PIXELS; i++) {
+        led_buffer.pixels[i] = 0xE0000000;
+    }
+
     MAP_SysCtlPeripheralEnable(LED_SSI_PERIPH);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
     MAP_GPIOPinConfigure(GPIO_PD3_SSI2CLK);
     MAP_GPIOPinConfigure(GPIO_PD1_SSI2XDAT0);
-    MAP_SSIConfigSetExpClk(LED_SSI_BASE, sysclock_hz, SSI_FRF_MOTO_MODE_3, SSI_MODE_MASTER, LED_CLOCK_HZ, 8);
+    MAP_SSIConfigSetExpClk(LED_SSI_BASE, sysclock_hz, SSI_FRF_MOTO_MODE_0, SSI_MODE_MASTER, LED_CLOCK_HZ, 8);
     MAP_SSIEnable(LED_SSI_BASE);
     MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3 | GPIO_PIN_1);
     MAP_uDMAChannelAssign(LED_UDMA);
