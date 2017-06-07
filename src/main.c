@@ -108,12 +108,19 @@ int main(void)
     MAP_SysCtlMOSCConfigSet(SYSCTL_MOSC_HIGHFREQ);
     uint32_t sysclock_hz = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480), 120000000);
 
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    MAP_WatchdogReloadSet(WATCHDOG0_BASE, sysclock_hz / (BOT_TICK_HZ / 4));
+    MAP_WatchdogResetEnable(WATCHDOG0_BASE);
+    MAP_WatchdogEnable(WATCHDOG0_BASE);
+    MAP_WatchdogIntClear(WATCHDOG0_BASE);
+
     PinoutSet(true, false);
 
     UARTStdioConfig(0, 115200, sysclock_hz);
     UARTprintf("\n\n====\n"
                "Tuco Flyer Firmware starting!\n\n");
     UARTFlushTx(false);
+    MAP_WatchdogIntClear(WATCHDOG0_BASE);
 
     // Turn on uDMA and give it some scratchpad RAM
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UDMA);
@@ -141,14 +148,10 @@ int main(void)
         Analog_Init(sysclock_hz, &flyer_sensor_buffer.analog);
     }
 
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
-    MAP_WatchdogReloadSet(WATCHDOG0_BASE, sysclock_hz / (BOT_TICK_HZ / 4));
-    MAP_WatchdogResetEnable(WATCHDOG0_BASE);
-    MAP_WatchdogEnable(WATCHDOG0_BASE);
-
     MAP_SysTickPeriodSet(sysclock_hz / BOT_TICK_HZ);
     MAP_SysTickEnable();
     MAP_SysTickIntEnable();
+    MAP_WatchdogIntClear(WATCHDOG0_BASE);
 
     MAP_IntPrioritySet(INT_EMAC0,      0xC0);
     MAP_IntPrioritySet(FAULT_SYSTICK,  0x80);
