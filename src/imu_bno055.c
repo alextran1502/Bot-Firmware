@@ -62,9 +62,9 @@ void IMU_I2CIrq(void)
 
 static void imu_poll_complete(void *userdata, uint_fast8_t i2c_status)
 {
+    imu_busy = false;
     if (i2c_status == I2CM_STATUS_SUCCESS) {
         imu_buffer->counter++;
-        imu_busy = false;
     } else {
         // Try resetting
         imu_setup_progress = 0;
