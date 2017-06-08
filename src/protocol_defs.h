@@ -45,20 +45,20 @@ struct flyer_sensors {
 };
 
 struct force_telemetry {
-    uint32_t measure;
+    int32_t measure;
     uint32_t counter;
 };
 
 struct winch_command {
     int32_t velocity_target;
     uint32_t accel_max;
-    uint32_t force_min;
-    uint32_t force_max;
+    int32_t force_min;
+    int32_t force_max;
 };
 
 struct winch_status {
-    struct force_telemetry force;
     struct winch_command command;
+    struct force_telemetry force;
     int32_t position;
     int32_t velocity;
     int32_t accel;
