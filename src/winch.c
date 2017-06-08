@@ -42,14 +42,17 @@ static bool winch_wdt_check_halt(void)
 
 void Winch_Init(uint32_t sysclock_hz)
 {
+#if 0
     // Drive the Enable signal low for now, we start up the motor after !winch_wdt_check_halt()
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
     winch_set_motor_enable(false);
+#endif
 
     // Force feedback via the external strain gauge ADC chip and its driver
     Force_Init(sysclock_hz, &winchstat.sensors.force);
 
+#if 0
     // Quadrature encoder tracks position and velocity in hardware, and generates a periodic interrupt
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_QEI0);
@@ -80,6 +83,7 @@ void Winch_Init(uint32_t sysclock_hz)
     MAP_GPIOPinConfigure(GPIO_PF2_M0PWM2);
     MAP_GPIOPinConfigure(GPIO_PF3_M0PWM3);
     MAP_GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+#endif
 }
 
 const struct winch_status* Winch_GetStatus()

@@ -31,7 +31,9 @@
 #define HX_NUM_CLOCKS       HX_CHA_X128
 #define HX_SSI_PERIPH       SYSCTL_PERIPH_SSI3
 #define HX_GPIO_BASE        GPIO_PORTQ_BASE
-#define HX_GPIO_INT         INT_GPIOQ3_TM4C123
+#define HX_GPIO_INT         INT_GPIOQ3
+#define HX_GPIO_INT_PIN     GPIO_INT_PIN_3
+
 
 static struct force_telemetry *force_buffer;
 static enum hx_state_t {
@@ -51,6 +53,7 @@ static void hx_transition_to_state(enum hx_state_t next)
     switch (next) {
 
         case S_WAIT_FOR_DATA_LOW:
+            MAP_GPIOIntClear(HX_GPIO_BASE, HX_GPIO_INT_PIN);
             MAP_IntEnable(HX_GPIO_INT);
             break;
 
@@ -93,8 +96,11 @@ void Force_Init(uint32_t sysclock_hz, struct force_telemetry *state_out)
     MAP_GPIOPinConfigure(GPIO_PQ0_SSI3CLK);
     MAP_GPIOPinConfigure(GPIO_PQ3_SSI3XDAT1);
     MAP_GPIOPinTypeSSI(GPIO_PORTQ_BASE, GPIO_PIN_3 | GPIO_PIN_0);
-    MAP_GPIOIntTypeSet(HX_GPIO_BASE, GPIO_PIN_3, GPIO_LOW_LEVEL);
-    MAP_GPIOIntEnable(HX_GPIO_BASE, GPIO_INT_PIN_3);
+
+    MAP_GPIOIntTypeSet(HX_GPIO_BASE, HX_GPIO_INT_PIN, GPIO_LOW_LEVEL | GPIO_DISCRETE_INT);
+    MAP_GPIOIntClear(HX_GPIO_BASE, HX_GPIO_INT_PIN);
+    MAP_GPIOIntEnable(HX_GPIO_BASE, HX_GPIO_INT_PIN);
+
     MAP_IntEnable(HX_SSI_INT);
     hx_transition_to_state(S_WAIT_FOR_DATA_LOW);
 }
@@ -102,9 +108,8 @@ void Force_Init(uint32_t sysclock_hz, struct force_telemetry *state_out)
 void Force_SPIIrq(void)
 {
     // SPI End-of-Transfer interrupt
-
-    static uint32_t first_16_bits;
-    uint32_t remainder;
+    static uint32_t first_16_bits = 0;
+    uint32_t remainder = 0;
 
     if (hx_state == S_READ_FIRST_16_BITS) {
         MAP_SSIDataGetNonBlocking(HX_SSI_BASE, &first_16_bits);
@@ -120,6 +125,9 @@ void Force_SPIIrq(void)
 void Force_DataPinIrq(void)
 {
     // Interrupts when data is LOW, only enabled in S_WAIT_FOR_DATA_LOW
-    hx_transition_to_state(S_READ_FIRST_16_BITS);
+    // Make sure the pin is still low, to ignore old interrupts.
+    if (!MAP_GPIOPinRead(HX_GPIO_BASE, HX_GPIO_INT_PIN)) {
+        hx_transition_to_state(S_READ_FIRST_16_BITS);
+    }
     MAP_GPIOIntClear(HX_GPIO_BASE, GPIO_INT_PIN_3);
 }
