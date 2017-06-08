@@ -12,6 +12,7 @@
 #include "xband.h"
 #include "lidar.h"
 #include "imu.h"
+#include "force.h"
 
 extern uint32_t _etext;
 extern uint32_t _data;
@@ -106,7 +107,7 @@ __attribute__ ((section(".isr_vector"))) const ivt_t ivt[] = {
     unimplemented_isr,              // INT_GPIOK_TM4C123
     unimplemented_isr,              // INT_GPIOL_TM4C123
     unimplemented_isr,              // INT_SSI2_TM4C123
-    unimplemented_isr,              // INT_SSI3_TM4C123
+    Force_SPIIrq,                   // INT_SSI3_TM4C123
     unimplemented_isr,              // INT_UART3_TM4C123
     unimplemented_isr,              // INT_UART4_TM4C123
     unimplemented_isr,              // INT_UART5_TM4C123
@@ -118,6 +119,51 @@ __attribute__ ((section(".isr_vector"))) const ivt_t ivt[] = {
     unimplemented_isr,              // INT_TIMER4B_TM4C123
     Lidar_Timer5AIrq,               // INT_TIMER5A_TM4C123
     Lidar_Timer5BIrq,               // INT_TIMER5B_TM4C123
+    unimplemented_isr,              // FPU
+    unimplemented_isr,              // reserved
+    unimplemented_isr,              // reserved
+    unimplemented_isr,              // I2C4
+    unimplemented_isr,              // I2C5
+    unimplemented_isr,              // GPIO M
+    unimplemented_isr,              // GPIO N
+    unimplemented_isr,              // reserved
+    unimplemented_isr,              // Tamper
+    unimplemented_isr,              // GPIO P0
+    unimplemented_isr,              // GPIO P1
+    unimplemented_isr,              // GPIO P2
+    unimplemented_isr,              // GPIO P3
+    unimplemented_isr,              // GPIO P4
+    unimplemented_isr,              // GPIO P5
+    unimplemented_isr,              // GPIO P6
+    unimplemented_isr,              // GPIO P7
+    unimplemented_isr,              // GPIO Q0
+    unimplemented_isr,              // GPIO Q1
+    unimplemented_isr,              // GPIO Q2
+    Force_DataPinIrq,               // GPIO Q3
+    unimplemented_isr,              // GPIO Q4
+    unimplemented_isr,              // GPIO Q5
+    unimplemented_isr,              // GPIO Q6
+    unimplemented_isr,              // GPIO Q7
+    unimplemented_isr,              // GPIO R
+    unimplemented_isr,              // GPIO S
+    unimplemented_isr,              // SHA/MD5 0
+    unimplemented_isr,              // AES 0
+    unimplemented_isr,              // DES3DES 0
+    unimplemented_isr,              // LCD Controller 0
+    unimplemented_isr,              // Timer 6A
+    unimplemented_isr,              // Timer 6B
+    unimplemented_isr,              // Timer 7A
+    unimplemented_isr,              // Timer 7B
+    unimplemented_isr,              // I2C6
+    unimplemented_isr,              // I2C7
+    unimplemented_isr,              // Matrix Keyboard
+    unimplemented_isr,              // One-wire
+    unimplemented_isr,              // PS/2 Keyboard
+    unimplemented_isr,              // LED Sequencer
+    unimplemented_isr,              // Consumer IR
+    unimplemented_isr,              // I2C8
+    unimplemented_isr,              // I2C9
+    unimplemented_isr               // GPIO T
 };
 
 void unimplemented_isr()
