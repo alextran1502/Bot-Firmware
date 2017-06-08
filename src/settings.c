@@ -20,7 +20,6 @@ uint8_t mac_address[8];
 volatile bool console_is_interactive = false;
 #define EEPROM_OFFSET 0
 
-
 static void console_help(void)
 {
     UARTprintf("Commands:\n"

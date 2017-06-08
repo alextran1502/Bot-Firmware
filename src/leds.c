@@ -31,7 +31,6 @@ static struct {
     uint32_t end[(LED_MAX_PIXELS + 31) / 32];
 } led_buffer;
 
-
 void LEDs_Init(uint32_t sysclock_hz)
 {
     memset(&led_buffer.start, 0x00, sizeof led_buffer.start);

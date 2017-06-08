@@ -27,7 +27,6 @@ static const uint32_t analog_channels[NUM_ANALOG_SENSORS] =
     ADC_CTL_CH16, ADC_CTL_CH17, ADC_CTL_CH18, ADC_CTL_CH19      // PK0 .. PK3
 };
 
-
 void Analog_Init(uint32_t sysclock_hz, struct analog_telemetry *state_out)
 {
     analog_buffer = state_out;
@@ -51,7 +50,6 @@ void Analog_Init(uint32_t sysclock_hz, struct analog_telemetry *state_out)
     MAP_ADCIntEnable(ADC_BASE, 0);
     MAP_IntEnable(ADC_SEQINT);
 }
-
 
 void Analog_SeqIrq(void)
 {

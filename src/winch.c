@@ -21,7 +21,6 @@
 
 static struct winch_status winchstat;
 
-
 void Winch_Init(uint32_t sysclock_hz)
 {
     // Force feedback via the external strain gauge ADC chip and its driver

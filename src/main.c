@@ -31,7 +31,6 @@ tDMAControlTable dma_control_table[64] __attribute__((aligned(1024)));
 
 struct flyer_sensors flyer_sensor_buffer;
 
-
 static void periodic_status(void)
 {
     const uint32_t interval = BOT_TICK_HZ;

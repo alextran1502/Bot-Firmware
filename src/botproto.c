@@ -14,7 +14,6 @@
 
 static struct udp_pcb *bot_udp;
 
-
 static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct ip_addr *addr, u16_t port)
 {
     uint8_t *hdr = p->payload;
@@ -54,14 +53,12 @@ static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct 
     pbuf_free(p);
 }
 
-
 void BotProto_Send(struct pbuf *p)
 {
     struct ip_addr ctrl;
     ctrl.addr = htonl(settings.ip_controller);
     udp_sendto(bot_udp, p, &ctrl, settings.udp_port);
 }
-
 
 void BotProto_SendCopy(uint8_t type, const void *data, uint32_t len)
 {
@@ -72,7 +69,6 @@ void BotProto_SendCopy(uint8_t type, const void *data, uint32_t len)
     BotProto_Send(p);
     pbuf_free(p);
 }
-
 
 void BotProto_Init(void)
 {

@@ -23,7 +23,6 @@
 #define TIM_PERIPH      	SYSCTL_PERIPH_TIMER0
 #define COUNTER_ROLLOVER   	0x1FF
 
-
 static struct xband_telemetry *xband_buffer = 0;
 
 void XBand_Init(uint32_t sysclock_hz, struct xband_telemetry *state_out)
@@ -31,7 +30,7 @@ void XBand_Init(uint32_t sysclock_hz, struct xband_telemetry *state_out)
 	xband_buffer = state_out;
 
 	MAP_SysCtlPeripheralEnable(TIM_PERIPH);
-	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);	
+	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
 	MAP_GPIOPinConfigure(GPIO_PL4_T0CCP0);
 	MAP_GPIOPinTypeTimer(GPIO_PORTL_BASE, GPIO_PIN_4);
 

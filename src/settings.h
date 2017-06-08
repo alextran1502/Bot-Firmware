@@ -11,7 +11,6 @@
 #define DBGF_NO_TELEMETRY       (1 << 0)
 #define DBGF_SETTINGS_INVALID   (1 << 31)
 
-
 struct settings_t {
     uint32_t bot_options;       // BOT_HAS_*
     uint32_t debug_flags;       // DBGF_*

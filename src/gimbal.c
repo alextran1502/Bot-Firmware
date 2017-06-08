@@ -35,7 +35,6 @@ static tRingBufObject gimbal_rx_ring;
 static uint8_t gimbal_tx_mem[2048];
 static uint8_t gimbal_rx_mem[512];
 
-
 void Gimbal_Init(uint32_t sysclock_hz)
 {
     gimbal_initialized = true;

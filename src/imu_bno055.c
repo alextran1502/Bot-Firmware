@@ -38,7 +38,6 @@ static const uint8_t imu_setup[] = {
     2, 0x3D, 0x0C,  // [OPR_MODE] = MODE_NDOF
 };
 
-
 void IMU_Init(uint32_t sysclock_hz, struct imu_telemetry *state_out)
 {
     // Try to unstick the bus by forcing SCL and SDA high briefly at startup
