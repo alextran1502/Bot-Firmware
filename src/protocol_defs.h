@@ -56,12 +56,22 @@ struct winch_command {
     int32_t force_max;
 };
 
-struct winch_status {
-    struct winch_command command;
+struct winch_sensors {
     struct force_telemetry force;
     int32_t position;
     int32_t velocity;
     int32_t accel;
-    uint32_t counter;
 };
 
+struct winch_motor_control {
+    int32_t pwm;
+    int32_t ramp_velocity;
+};
+
+struct winch_status {
+    uint32_t command_counter;
+    uint32_t tick_counter;
+    struct winch_command command;
+    struct winch_sensors sensors;
+    struct winch_motor_control motor;
+};
