@@ -12,7 +12,7 @@
 #define BOT_MSG_FLYER_SENSORS   0x02        // struct flyer_sensors
 #define BOT_MSG_WINCH_STATUS    0x03        // struct winch_status
 #define BOT_MSG_WINCH_COMMAND   0x04        // struct winch_command
-#define BOT_MSG_LEDS            0x05        // struct leds_command
+#define BOT_MSG_LEDS            0x05        // apa102 data, 32 bits/pixel
 
 struct xband_telemetry {
     uint32_t edge_count;
@@ -49,17 +49,19 @@ struct force_telemetry {
     uint32_t counter;
 };
 
-struct winch_status {
-    struct force_telemetry force;
-    uint32_t counter;
-    int32_t position;
-    int32_t velocity;
-    int32_t accel;
-};
-
 struct winch_command {
     int32_t velocity_target;
     uint32_t accel_max;
     uint32_t force_min;
     uint32_t force_max;
 };
+
+struct winch_status {
+    struct force_telemetry force;
+    struct winch_command command;
+    int32_t position;
+    int32_t velocity;
+    int32_t accel;
+    uint32_t counter;
+};
+
