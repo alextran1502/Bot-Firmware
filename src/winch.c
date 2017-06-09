@@ -42,17 +42,14 @@ static bool winch_wdt_check_halt(void)
 
 void Winch_Init(uint32_t sysclock_hz)
 {
-#if 0
     // Drive the Enable signal low for now, we start up the motor after !winch_wdt_check_halt()
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
     winch_set_motor_enable(false);
-#endif
 
     // Force feedback via the external strain gauge ADC chip and its driver
     Force_Init(sysclock_hz, &winchstat.sensors.force);
 
-#if 0
     // Quadrature encoder tracks position and velocity in hardware, and generates a periodic interrupt
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_QEI0);
@@ -68,6 +65,7 @@ void Winch_Init(uint32_t sysclock_hz)
     MAP_GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_1 | GPIO_PIN_2);
 
     // Motion control PWM output
+    motor_pwm_period = sysclock_hz / MOTOR_PWM_HZ;
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
     MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_2, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_SYNC | PWM_GEN_MODE_DBG_STOP | PWM_GEN_MODE_GEN_SYNC_LOCAL);
@@ -83,7 +81,6 @@ void Winch_Init(uint32_t sysclock_hz)
     MAP_GPIOPinConfigure(GPIO_PF2_M0PWM2);
     MAP_GPIOPinConfigure(GPIO_PF3_M0PWM3);
     MAP_GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-#endif
 }
 
 const struct winch_status* Winch_GetStatus()
@@ -119,11 +116,16 @@ void Winch_QEIIrq()
         // Normal operation
 
         // xxx control loop goes here
-        int32_t pwm = winchstat.command.velocity_target;
+        // int32_t pwm = (winchstat.command.velocity_target & 0xff) - 128;
 
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, pwm > 0 ?  pwm : 0);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm < 0 ? -pwm : 0);
+        // MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, pwm > 0 ?  pwm : 0);
+        // MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm < 0 ? -pwm : 0);
+        // MAP_PWMSyncUpdate(PWM0_BASE, PWM_GEN_2_BIT | PWM_GEN_3_BIT);
+
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, 0);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, 0);
         MAP_PWMSyncUpdate(PWM0_BASE, PWM_GEN_2_BIT | PWM_GEN_3_BIT);
+
         winch_set_motor_enable(true);
     }
 
