@@ -1,3 +1,5 @@
+#undef  __STRICT_ANSI__     // For strsep()
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -93,11 +95,11 @@ static void set_value(uint32_t offset, uint32_t value)
 
 static void console_command(char *line)
 {
-    char *tokens;
+    char **linep = &line;
     char *delim = " \t";
-    char *command = strtok_r(line, delim, &tokens);
+    char *command = strsep(linep, delim);
 
-    if (!command || !*command) {
+    if (!*command) {
         return;
     }
 
@@ -117,14 +119,12 @@ static void console_command(char *line)
     }
 
     if (!strcmp(command, "setwinch")) {
-        char *arg = strtok_r(0, delim, &tokens);
-        if (arg) {
-            char *endptr;
-            uint32_t number = strtoul(arg, &endptr, 0);
-            if (!*endptr) {
-                setup_winch(number);
-                return;
-            }
+        char *arg = strsep(linep, delim);
+        char *endptr;
+        uint32_t number = strtoul(arg, &endptr, 0);
+        if (!*endptr) {
+            setup_winch(number);
+            return;
         }
     }
 
@@ -135,16 +135,14 @@ static void console_command(char *line)
     }
 
     if (!strcmp(command, "set")) {
-        char *arg0 = strtok_r(0, delim, &tokens);
-        char *arg1 = strtok_r(0, delim, &tokens);
-        if (arg0 && arg1) {
-            char *e1, *e2;
-            uint32_t num0 = strtoul(arg0, &e1, 0);
-            uint32_t num1 = strtoul(arg1, &e2, 0);
-            if (!*e1 && !*e2) {
-                set_value(num0, num1);
-                return;
-            }
+        char *arg0 = strsep(linep, delim);
+        char *arg1 = strsep(linep, delim);
+        char *e1, *e2;
+        uint32_t num0 = strtoul(arg0, &e1, 0);
+        uint32_t num1 = strtoul(arg1, &e2, 0);
+        if (!*e1 && !*e2) {
+            set_value(num0, num1);
+            return;
         }
     }
 
