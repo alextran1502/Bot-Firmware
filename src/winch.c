@@ -59,7 +59,6 @@ void Winch_Init(uint32_t sysclock_hz)
     MAP_QEIVelocityEnable(QEI0_BASE);
     MAP_QEIVelocityConfigure(QEI0_BASE, QEI_VELDIV_1, sysclock_hz / BOT_TICK_HZ);
     MAP_QEIIntEnable(QEI0_BASE, QEI_INTTIMER);
-    MAP_IntEnable(INT_QEI0);
     MAP_GPIOPinConfigure(GPIO_PL1_PHA0);
     MAP_GPIOPinConfigure(GPIO_PL2_PHB0);
     MAP_GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_1 | GPIO_PIN_2);
@@ -81,6 +80,9 @@ void Winch_Init(uint32_t sysclock_hz)
     MAP_GPIOPinConfigure(GPIO_PF2_M0PWM2);
     MAP_GPIOPinConfigure(GPIO_PF3_M0PWM3);
     MAP_GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+
+    // Start regular motion processing in the QEI interrupt
+    MAP_IntEnable(INT_QEI0);
 }
 
 const struct winch_status* Winch_GetStatus()
@@ -115,15 +117,11 @@ void Winch_QEIIrq()
     } else {
         // Normal operation
 
-        // xxx control loop goes here
-        // int32_t pwm = (winchstat.command.velocity_target & 0xff) - 128;
+        //xxx control loop goes here
+        int32_t pwm = winchstat.command.velocity_target;
 
-        // MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, pwm > 0 ?  pwm : 0);
-        // MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm < 0 ? -pwm : 0);
-        // MAP_PWMSyncUpdate(PWM0_BASE, PWM_GEN_2_BIT | PWM_GEN_3_BIT);
-
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, 0);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, 0);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, pwm > 0 ?  pwm : 0);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm < 0 ? -pwm : 0);
         MAP_PWMSyncUpdate(PWM0_BASE, PWM_GEN_2_BIT | PWM_GEN_3_BIT);
 
         winch_set_motor_enable(true);
