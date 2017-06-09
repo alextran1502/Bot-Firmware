@@ -67,16 +67,10 @@ void Winch_Init(uint32_t sysclock_hz)
     motor_pwm_period = sysclock_hz / MOTOR_PWM_HZ;
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
-    MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_2, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_SYNC | PWM_GEN_MODE_DBG_STOP | PWM_GEN_MODE_GEN_SYNC_LOCAL);
-    MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_3, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_SYNC | PWM_GEN_MODE_DBG_STOP | PWM_GEN_MODE_GEN_SYNC_LOCAL);
-    MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT | PWM_OUT_3_BIT, true);
-    MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, motor_pwm_period);
-    MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_3, motor_pwm_period);
-    MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, 0);
-    MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, 0);
-    MAP_PWMSyncUpdate(PWM0_BASE, PWM_GEN_2_BIT | PWM_GEN_3_BIT);
-    MAP_PWMGenEnable(PWM0_BASE, PWM_GEN_2);
-    MAP_PWMGenEnable(PWM0_BASE, PWM_GEN_3);
+    MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_1, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
+    MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, motor_pwm_period);
+    MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT | PWM_OUT_3_BIT, false);
+    MAP_PWMGenEnable(PWM0_BASE, PWM_GEN_1);
     MAP_GPIOPinConfigure(GPIO_PF2_M0PWM2);
     MAP_GPIOPinConfigure(GPIO_PF3_M0PWM3);
     MAP_GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
@@ -120,10 +114,17 @@ void Winch_QEIIrq()
         //xxx control loop goes here
         int32_t pwm = winchstat.command.velocity_target;
 
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, pwm > 0 ?  pwm : 0);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm < 0 ? -pwm : 0);
-        MAP_PWMSyncUpdate(PWM0_BASE, PWM_GEN_2_BIT | PWM_GEN_3_BIT);
-
+        if (pwm > 0) {
+            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
+            MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, pwm);
+            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
+        } else if (pwm < 0) {
+            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
+            MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, -pwm);
+            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, true);
+        } else {
+            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
+        }
         winch_set_motor_enable(true);
     }
 
