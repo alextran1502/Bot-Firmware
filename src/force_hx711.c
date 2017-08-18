@@ -81,7 +81,10 @@ static void hx_store_result(uint32_t first_16_bits, uint32_t remainder)
     uint32_t left_justified_remainder = remainder << (32 - (HX_NUM_CLOCKS - 16));
     uint32_t combined24 = 0xffffff & ((first_16_bits << 8) | (left_justified_remainder >> 24));
     uint32_t signbit = (combined24 & 0x800000) ? 0xff000000 : 0;
-    force_buffer->measure = (int32_t) (combined24 | signbit);
+    int32_t measure = (int32_t) (combined24 | signbit);
+
+    force_buffer->measure = measure;
+    force_buffer->filtered = Force_Filter(measure);
     force_buffer->counter++;
 }
 

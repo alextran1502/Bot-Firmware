@@ -46,6 +46,7 @@ struct flyer_sensors {
 
 struct force_telemetry {
     int32_t measure;
+    int32_t filtered;
     uint32_t counter;
 };
 
