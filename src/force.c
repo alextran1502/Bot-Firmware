@@ -2,7 +2,8 @@
 #include "force.h"
 
 
-int32_t Force_Filter(int32_t measure)
+
+float Force_Filter(int32_t measure)
 {
 	// The control host can do its own filtering on the raw data obviously,
 	// but this filtering is built-in so we have a canonical low-pass-filtered
@@ -14,5 +15,5 @@ int32_t Force_Filter(int32_t measure)
 	const float decay = 0.97f;
 	static float state;
 	state += (1.0f - decay) * (measure - (float)state);
-	return (int32_t)state;
+	return state;
 }

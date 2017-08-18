@@ -7,4 +7,4 @@ void Force_Init(uint32_t sysclock_hz, struct force_telemetry *state_out);
 void Force_SPIIrq(void);
 void Force_DataPinIrq(void);
 
-int32_t Force_Filter(int32_t measure);
+float Force_Filter(int32_t measure);

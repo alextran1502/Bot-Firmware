@@ -96,11 +96,9 @@ void Winch_QEIIrq()
 {
     int32_t position = MAP_QEIPositionGet(QEI0_BASE);
     int32_t velocity = MAP_QEIVelocityGet(QEI0_BASE);
-    int32_t accel = velocity - winchstat.sensors.velocity;
     MAP_QEIIntClear(QEI0_BASE, QEI_INTTIMER);
     winchstat.sensors.position = position;
     winchstat.sensors.velocity = velocity;
-    winchstat.sensors.accel = accel;
 
     if (winch_wdt_check_halt()) {
         // Turn off H-bridge driver immediately, reset motor state
@@ -115,13 +113,13 @@ void Winch_QEIIrq()
         int32_t pwm = winchstat.command.velocity_target;
 
         if (pwm > 0) {
-            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
-            MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, pwm);
-            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
-        } else if (pwm < 0) {
             MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-            MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, -pwm);
+            MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm);
             MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, true);
+        } else if (pwm < 0) {
+            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
+            MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -pwm);
+            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
         } else {
             MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
         }

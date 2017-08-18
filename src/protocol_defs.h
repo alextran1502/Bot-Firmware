@@ -45,28 +45,27 @@ struct flyer_sensors {
 };
 
 struct force_telemetry {
-    int32_t measure;
-    int32_t filtered;
+    int32_t measure;            // Uncalibrated, (+) = increasing tension
+    float filtered;             // Same units, just low-pass filtered prior to limit testing
     uint32_t counter;
 };
 
 struct winch_command {
-    int32_t velocity_target;
-    uint32_t accel_max;
-    int32_t force_min;
-    int32_t force_max;
+    float velocity_target;      // Encoder position units per second
+    float accel_max;            // Encoder units per second per second, peak
+    float force_min;            // Uncalibrated load cell units, no negative motion below
+    float force_max;            // Uncalibrated load cell unitsNo positive motion above this filtered force value
 };
 
 struct winch_sensors {
     struct force_telemetry force;
-    int32_t position;
-    int32_t velocity;
-    int32_t accel;
+    int32_t position;           // Integrated position in encoder units, from hardware
+    int32_t velocity;           // Instantaneous velocity in encoder units per tick, from hardware
 };
 
 struct winch_motor_control {
     int32_t pwm;
-    int32_t ramp_velocity;
+    float ramp_velocity;
 };
 
 struct winch_status {
