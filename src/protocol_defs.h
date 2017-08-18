@@ -52,7 +52,7 @@ struct force_telemetry {
 
 struct winch_command {
     float velocity_target;      // Encoder position units per second
-    float accel_max;            // Encoder units per second per second, peak
+    float accel_rate;           // Encoder units per second per second for velocity ramp
     float force_min;            // Uncalibrated load cell units, no negative motion below
     float force_max;            // Uncalibrated load cell unitsNo positive motion above this filtered force value
 };
