@@ -29,17 +29,6 @@ static void winch_set_motor_enable(bool en)
     MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, en ? GPIO_PIN_1 : 0);
 }
 
-static bool winch_wdt_check_halt(void)
-{
-    // Check if it's okay to run the motors or if we should halt and reset
-    // Things to look at:
-    //    is force in range (soft stop)
-    //    is force sensor working
-    //    is command stream working
-
-    return false;
-}
-
 void Winch_Init(uint32_t sysclock_hz)
 {
     // Drive the Enable signal low for now, we start up the motor after !winch_wdt_check_halt()
@@ -94,37 +83,47 @@ void Winch_Command(struct pbuf *p)
 
 void Winch_QEIIrq()
 {
+    // Capture hardware status
     int32_t position = MAP_QEIPositionGet(QEI0_BASE);
     int32_t velocity = MAP_QEIVelocityGet(QEI0_BASE);
     MAP_QEIIntClear(QEI0_BASE, QEI_INTTIMER);
     winchstat.sensors.position = position;
     winchstat.sensors.velocity = velocity;
 
-    if (winch_wdt_check_halt()) {
-        // Turn off H-bridge driver immediately, reset motor state
-        winch_set_motor_enable(false);
-        memset(&winchstat.motor, 0, sizeof winchstat.motor);
-        winchstat.command.velocity_target = 0;
+    // Local copy of status from global data
+    float force = winchstat.sensors.force.filtered;
+    struct winch_command command = winchstat.command;
 
-    } else {
-        // Normal operation
+    // xxx more control loop goes here
+    float velocity_target = command.velocity_target;
 
-        //xxx control loop goes here
-        int32_t pwm = winchstat.command.velocity_target;
-
-        if (pwm > 0) {
-            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-            MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm);
-            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, true);
-        } else if (pwm < 0) {
-            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
-            MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -pwm);
-            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
-        } else {
-            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
-        }
-        winch_set_motor_enable(true);
+    // Enforce force limits
+    if (force > command.force_max && velocity_target > 0.0f) {
+        velocity_target = 0.0f;
+    }
+    if (force < command.force_min && velocity_target < 0.0f) {
+        velocity_target = 0.0f;
     }
 
+    // xxx more control loop goes here
+    winchstat.motor.ramp_velocity = velocity_target;
+
+    // xxx more control loop goes here
+    int32_t pwm = winchstat.motor.ramp_velocity;
+    winchstat.motor.pwm = pwm;
+
+    if (pwm > 0) {
+        MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm);
+        MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, true);
+    } else if (pwm < 0) {
+        MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -pwm);
+        MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
+    } else {
+        MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
+    }
+    winch_set_motor_enable(true);
     winchstat.tick_counter++;
 }
+
