@@ -26,6 +26,13 @@
 // Watchdog for incoming commands; ramp motor to zero when controller disappears
 #define MAX_TICKS_SINCE_LAST_COMMAND    2
 
+// If we've been commanding the motor to zero velocity for this many ticks and the
+// motor output still isn't zero, disable the motor driver. This is another safeguard
+// against a runaway motor in case the control loop parameters are bad and we're
+// hitting another limit, plus it lets us put the brakes on more quickly if we must.
+#define MOTOR_HALT_LATENCY_TICKS        (BOT_TICK_HZ / 4)
+
+
 static uint32_t motor_pwm_period;
 static struct winch_status winchstat;
 
@@ -112,15 +119,10 @@ void Winch_Command(struct pbuf *p)
     }
 }
 
-void Winch_QEIIrq()
+static void winch_motor_tick()
 {
-    int32_t position = MAP_QEIPositionGet(QEI0_BASE);
-    MAP_QEIIntClear(QEI0_BASE, QEI_INTTIMER);
-    float velocity = (float)(position - winchstat.sensors.position) * BOT_TICK_HZ;
-    winchstat.sensors.position = position;
-    winchstat.sensors.velocity = velocity;
-
     // Local copy of status from global data
+    float velocity = winchstat.sensors.velocity;
     float force = winchstat.sensors.force.filtered;
     struct winch_command command = winchstat.command;
 
@@ -138,18 +140,48 @@ void Winch_QEIIrq()
 
     // The central controller gives us a target velocity that drives a PID loop
     float velocity_target = command.velocity_target;
+    const float insignificant_velocity = 1e-3;
+    bool will_halt = !(velocity_target < -insignificant_velocity ||
+                       velocity_target > insignificant_velocity);
 
     // If we haven't seen a new command recently, ramp the motor to zero.
     if (ticks_without_new_command > MAX_TICKS_SINCE_LAST_COMMAND) {
         velocity_target = 0.0f;
+        will_halt = true;
     }
 
     // Enforce limits on filtered force sensor readings
-    if (force > command.force_max && velocity_target > 0.0f) {
+    if ((force > command.force_max && velocity_target > 0.0f) ||
+        (force < command.force_min && velocity_target < 0.0f)) {
         velocity_target = 0.0f;
+        will_halt = true;
     }
-    if (force < command.force_min && velocity_target < 0.0f) {
-        velocity_target = 0.0f;
+
+    // The immediate effect of will_halt is to ramp toward zero.
+    // As an additional safeguard against a runaway motor, if
+    // we're still trying to halt some time later but the motor PWM
+    // isn't zero, we will force it to zero and disable the motor
+    // driver temporarily.
+
+    static uint32_t halt_tick_count = 0;
+    if (will_halt && winchstat.motor.pwm) {
+        halt_tick_count++;
+        if (halt_tick_count >= MOTOR_HALT_LATENCY_TICKS) {
+
+            // Disable PWM, disable H-bridge
+            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
+            winch_set_motor_enable(false);
+
+            // Reset control loop state
+            winchstat.motor.pwm = 0.0f;
+            winchstat.motor.ramp_velocity = 0.0f;
+            winchstat.motor.vel_err_integral = 0.0f;
+
+            // Skip the control loop until we have a nonzero command
+            return;
+        }
+    } else {
+        halt_tick_count = 0;
     }
 
     // Linear velocity ramping (acceleration limit)
@@ -162,18 +194,18 @@ void Winch_QEIIrq()
     winchstat.motor.ramp_velocity = ramp_velocity;
 
     // PID loop is based on velocity error
-    float velocity_err = ramp_velocity - velocity;
-    static float last_velocity_err = 0.0f;
-    static float integrated_err = 0.0f;
-    float velocity_err_diff = velocity_err - last_velocity_err;
-    last_velocity_err = velocity_err;
-    integrated_err += velocity_err;
+    float vel_err = ramp_velocity - velocity;
+    float vel_err_diff = (vel_err - winchstat.motor.vel_err) * BOT_TICK_HZ;
+    float vel_err_integral = winchstat.motor.vel_err_integral + vel_err / BOT_TICK_HZ;
+    winchstat.motor.vel_err = vel_err;
+    winchstat.motor.vel_err_diff = vel_err_diff;
+    winchstat.motor.vel_err_integral = vel_err_integral;
 
     // Update PID loop
     float pwm = winchstat.motor.pwm;
-    pwm += winchstat.command.pwm_gain_p * velocity_err;
-    pwm += winchstat.command.pwm_gain_i * integrated_err;
-    pwm += winchstat.command.pwm_gain_d * velocity_err_diff;
+    pwm += winchstat.command.pwm_gain_p * vel_err;
+    pwm += winchstat.command.pwm_gain_i * vel_err_integral;
+    pwm += winchstat.command.pwm_gain_d * vel_err_diff;
 
     // Final stored PWM state is clamped to [-1, 1]
     pwm = pwm > -1.0f ? pwm : -1.0f;
@@ -181,16 +213,17 @@ void Winch_QEIIrq()
     winchstat.motor.pwm = pwm;
 
     // Convert to number of clock ticks
-    int32_t pwm_ticks = motor_pwm_period * pwm;
+    int32_t pwm_quant = motor_pwm_period * pwm;
+    winchstat.motor.pwm_quant = pwm_quant;
 
     // Drive one or the other H-bridge leg according to sign
-    if (pwm_ticks > 0) {
+    if (pwm_quant > 0) {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm_ticks);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm_quant);
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, true);
-    } else if (pwm_ticks < 0) {
+    } else if (pwm_quant < 0) {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -pwm_ticks);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -pwm_quant);
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
     } else {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
@@ -199,6 +232,17 @@ void Winch_QEIIrq()
     // Enable motor driver for the first time only once we get here.
     // Every subsequent time, this is redundant.
     winch_set_motor_enable(true);
+}
+
+void Winch_QEIIrq()
+{
+    int32_t position = MAP_QEIPositionGet(QEI0_BASE);
+    MAP_QEIIntClear(QEI0_BASE, QEI_INTTIMER);
+    float velocity = (float)(position - winchstat.sensors.position) * BOT_TICK_HZ;
+    winchstat.sensors.position = position;
+    winchstat.sensors.velocity = velocity;
+
+    winch_motor_tick();
 
     winchstat.tick_counter++;
 }
