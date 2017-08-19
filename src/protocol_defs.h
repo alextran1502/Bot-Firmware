@@ -68,8 +68,8 @@ struct winch_sensors {
 };
 
 struct winch_motor_control {
-    int32_t pwm;
-    float ramp_velocity;
+    float pwm;                  // Current motor PWM state, updated by the PID loop, clamped to [-1, 1]
+    float ramp_velocity;        // Current acting velocity_target due to accel_rate limit
 };
 
 struct winch_status {

@@ -153,27 +153,44 @@ void Winch_QEIIrq()
     }
 
     // Linear velocity ramping (acceleration limit)
-    float target_accel = velocity_target - winchstat.motor.ramp_velocity;
+    float ramp_velocity = winchstat.motor.ramp_velocity;
+    float target_accel = velocity_target - ramp_velocity;
     float rate_per_tick = command.accel_rate / BOT_TICK_HZ;
     if (target_accel > rate_per_tick) target_accel = rate_per_tick;
     if (target_accel < -rate_per_tick) target_accel = -rate_per_tick;
-    winchstat.motor.ramp_velocity += target_accel;
+    ramp_velocity += target_accel;
+    winchstat.motor.ramp_velocity = ramp_velocity;
 
-    // xxx more control loop goes here
-    int32_t pwm = winchstat.motor.ramp_velocity;
+    // Update PID loop
+    float pwm = winchstat.motor.pwm;
+
+    // hack
+    pwm = ramp_velocity / 4096.0f;
+
+    // Final stored PWM state is clamped to [-1, 1]
+    pwm = pwm > -1.0f ? pwm : -1.0f;
+    pwm = pwm < 1.0f ? pwm : 1.0f;
     winchstat.motor.pwm = pwm;
 
-    if (pwm > 0) {
+    // Convert to number of clock ticks
+    int32_t pwm_ticks = motor_pwm_period * pwm;
+
+    // Drive one or the other H-bridge leg according to sign
+    if (pwm_ticks > 0) {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm_ticks);
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, true);
-    } else if (pwm < 0) {
+    } else if (pwm_ticks < 0) {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -pwm);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -pwm_ticks);
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
     } else {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
     }
+
+    // Enable motor driver for the first time only once we get here.
+    // Every subsequent time, this is redundant.
     winch_set_motor_enable(true);
+
     winchstat.tick_counter++;
 }
