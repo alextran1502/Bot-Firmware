@@ -20,7 +20,12 @@
 #include "winch.h"
 #include "force.h"
 
-#define MOTOR_PWM_HZ    25000
+// Modulation frequency
+#define MOTOR_PWM_HZ        25000
+
+// Watchdog for incoming commands; ramp motor to zero when controller disappears
+#define MAX_TICKS_SINCE_LAST_COMMAND    2
+
 static uint32_t motor_pwm_period;
 static struct winch_status winchstat;
 
@@ -120,10 +125,27 @@ void Winch_QEIIrq()
     float force = winchstat.sensors.force.filtered;
     struct winch_command command = winchstat.command;
 
-    // xxx more control loop goes here
+    // Determine whether there was a new command since the last tick,
+    // and keep count of how many ticks since the last command.
+    static uint32_t last_command_counter = 0;
+    static uint32_t ticks_without_new_command = 0;
+    uint32_t next_command_counter = winchstat.command_counter;
+    if (last_command_counter != next_command_counter) {
+        last_command_counter = next_command_counter;
+        ticks_without_new_command = 0;
+    } else {
+        ticks_without_new_command++;
+    }
+
+    // The central controller gives us a target velocity that drives a PID loop
     float velocity_target = command.velocity_target;
 
-    // Enforce force limits
+    // If we haven't seen a new command recently, ramp the motor to zero.
+    if (ticks_without_new_command > MAX_TICKS_SINCE_LAST_COMMAND) {
+        velocity_target = 0.0f;
+    }
+
+    // Enforce limits on filtered force sensor readings
     if (force > command.force_max && velocity_target > 0.0f) {
         velocity_target = 0.0f;
     }
