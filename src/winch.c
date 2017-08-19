@@ -164,7 +164,7 @@ static void winch_motor_tick()
     // driver temporarily.
 
     static uint32_t halt_tick_count = 0;
-    if (will_halt && winchstat.motor.pwm) {
+    if (will_halt && winchstat.motor.pwm_quant) {
         halt_tick_count++;
         if (halt_tick_count >= MOTOR_HALT_LATENCY_TICKS) {
 
