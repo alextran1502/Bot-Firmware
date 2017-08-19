@@ -114,10 +114,9 @@ void Winch_Command(struct pbuf *p)
 
 void Winch_QEIIrq()
 {
-    // Capture hardware status
     int32_t position = MAP_QEIPositionGet(QEI0_BASE);
-    int32_t velocity = MAP_QEIVelocityGet(QEI0_BASE);
     MAP_QEIIntClear(QEI0_BASE, QEI_INTTIMER);
+    float velocity = (float)(position - winchstat.sensors.position) * BOT_TICK_HZ;
     winchstat.sensors.position = position;
     winchstat.sensors.velocity = velocity;
 

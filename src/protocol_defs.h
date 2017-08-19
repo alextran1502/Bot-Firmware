@@ -64,7 +64,7 @@ struct winch_command {
 struct winch_sensors {
     struct force_telemetry force;
     int32_t position;           // Integrated position in encoder units, from hardware
-    int32_t velocity;           // Instantaneous velocity in encoder units per tick, from hardware
+    float velocity;             // Calculated instantaneous velocity on each tick, in position units per second
 };
 
 struct winch_motor_control {
