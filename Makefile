@@ -39,7 +39,6 @@ ${COMPILER}/tucoflyer.axf: ${COMPILER}/lidar.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/xband.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/leds.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/winch.o
-${COMPILER}/tucoflyer.axf: ${COMPILER}/force.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/force_hx711.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/imu_bno055.o
 ${COMPILER}/tucoflyer.axf: ${COMPILER}/analog.o

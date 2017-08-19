@@ -52,9 +52,13 @@ struct force_telemetry {
 
 struct winch_command {
     float velocity_target;      // Encoder position units per second
-    float accel_rate;           // Encoder units per second per second for velocity ramp
+    float force_filter_param;   // IIR filter parameter in range [0,1] for force sensor
     float force_min;            // Uncalibrated load cell units, no negative motion below
     float force_max;            // Uncalibrated load cell unitsNo positive motion above this filtered force value
+    float accel_rate;           // Encoder units per second per second for velocity ramp
+    float pwm_gain_p;           // PWM gain proportional to velocity error
+    float pwm_gain_i;           // PWM gain proportional to integral of velocity error
+    float pwm_gain_d;           // PWM gain proportional to integral of velocity error
 };
 
 struct winch_sensors {

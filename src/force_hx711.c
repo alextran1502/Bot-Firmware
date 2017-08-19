@@ -34,8 +34,7 @@
 #define HX_GPIO_INT         INT_GPIOQ3
 #define HX_GPIO_INT_PIN     GPIO_INT_PIN_3
 
-
-static struct force_telemetry *force_buffer;
+static force_callback_t force_callback;
 static enum hx_state_t {
     S_WAIT_FOR_DATA_LOW = 0,
     S_READ_FIRST_16_BITS,
@@ -82,15 +81,13 @@ static void hx_store_result(uint32_t first_16_bits, uint32_t remainder)
     uint32_t combined24 = 0xffffff & ((first_16_bits << 8) | (left_justified_remainder >> 24));
     uint32_t signbit = (combined24 & 0x800000) ? 0xff000000 : 0;
     int32_t measure = (int32_t) (combined24 | signbit);
+    force_callback(measure);
 
-    force_buffer->measure = measure;
-    force_buffer->filtered = Force_Filter(measure);
-    force_buffer->counter++;
 }
 
-void Force_Init(uint32_t sysclock_hz, struct force_telemetry *state_out)
+void Force_Init(uint32_t sysclock_hz, force_callback_t callback)
 {
-    force_buffer = state_out;
+    force_callback = callback;
     MAP_SysCtlPeripheralEnable(HX_SSI_PERIPH);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOQ);
     MAP_SSIConfigSetExpClk(HX_SSI_BASE, sysclock_hz, SSI_FRF_MOTO_MODE_1, SSI_MODE_MASTER, HX_CLOCK_HZ, 8);

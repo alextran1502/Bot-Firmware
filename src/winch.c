@@ -29,6 +29,32 @@ static void winch_set_motor_enable(bool en)
     MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, en ? GPIO_PIN_1 : 0);
 }
 
+static void winch_force_sensor_callback(int32_t measure)
+{
+    // Called from the force sensor's ISR when it completes a measurement.
+    // We run a low-pass filter and store both the original and filtered data.
+
+    // The control host can do its own filtering on the raw data obviously,
+    // but this filtering is built-in so we have a canonical low-pass-filtered
+    // signal to use for out-of-range detection.
+
+    // Single pole IIR filter. Let's use that hardware floating point!
+    // Assuming 80 Hz sampling rate, and frequencies of interest < 4 Hz or so.
+
+    static float state;
+    float param = winchstat.command.force_filter_param;
+
+    if (param > 0.0f && param < 1.0f) {
+        state += (1.0f - param) * ((float)measure - state);
+    } else {
+        state = (float)measure;
+    }
+
+    winchstat.sensors.force.measure = measure;
+    winchstat.sensors.force.filtered = state;
+    winchstat.sensors.force.counter++;
+}
+
 void Winch_Init(uint32_t sysclock_hz)
 {
     // Drive the Enable signal low for now, we start up the motor after !winch_wdt_check_halt()
@@ -37,7 +63,7 @@ void Winch_Init(uint32_t sysclock_hz)
     winch_set_motor_enable(false);
 
     // Force feedback via the external strain gauge ADC chip and its driver
-    Force_Init(sysclock_hz, &winchstat.sensors.force);
+    Force_Init(sysclock_hz, &winch_force_sensor_callback);
 
     // Quadrature encoder tracks position and velocity in hardware, and generates a periodic interrupt
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
@@ -105,8 +131,12 @@ void Winch_QEIIrq()
         velocity_target = 0.0f;
     }
 
-    // xxx more control loop goes here
-    winchstat.motor.ramp_velocity = velocity_target;
+    // Linear velocity ramping (acceleration limit)
+    float target_accel = velocity_target - winchstat.motor.ramp_velocity;
+    float rate_per_tick = command.accel_rate / BOT_TICK_HZ;
+    if (target_accel > rate_per_tick) target_accel = rate_per_tick;
+    if (target_accel < -rate_per_tick) target_accel = -rate_per_tick;
+    winchstat.motor.ramp_velocity += target_accel;
 
     // xxx more control loop goes here
     int32_t pwm = winchstat.motor.ramp_velocity;
@@ -126,4 +156,3 @@ void Winch_QEIIrq()
     winch_set_motor_enable(true);
     winchstat.tick_counter++;
 }
-
