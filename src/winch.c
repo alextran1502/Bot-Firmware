@@ -161,11 +161,19 @@ void Winch_QEIIrq()
     ramp_velocity += target_accel;
     winchstat.motor.ramp_velocity = ramp_velocity;
 
+    // PID loop is based on velocity error
+    float velocity_err = ramp_velocity - velocity;
+    static float last_velocity_err = 0.0f;
+    static float integrated_err = 0.0f;
+    float velocity_err_diff = velocity_err - last_velocity_err;
+    last_velocity_err = velocity_err;
+    integrated_err += velocity_err;
+
     // Update PID loop
     float pwm = winchstat.motor.pwm;
-
-    // hack
-    pwm = ramp_velocity / 4096.0f;
+    pwm += winchstat.command.pwm_gain_p * velocity_err;
+    pwm += winchstat.command.pwm_gain_i * integrated_err;
+    pwm += winchstat.command.pwm_gain_d * velocity_err_diff;
 
     // Final stored PWM state is clamped to [-1, 1]
     pwm = pwm > -1.0f ? pwm : -1.0f;
