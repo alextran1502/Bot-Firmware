@@ -157,6 +157,23 @@ static void winch_motor_tick()
         will_halt = true;
     }
 
+    // Linear velocity ramping (acceleration limit)
+    float ramp_velocity = winchstat.motor.ramp_velocity;
+    float target_accel = velocity_target - ramp_velocity;
+    float rate_per_tick = command.accel_rate / BOT_TICK_HZ;
+    if (target_accel > rate_per_tick) target_accel = rate_per_tick;
+    if (target_accel < -rate_per_tick) target_accel = -rate_per_tick;
+    ramp_velocity += target_accel;
+    winchstat.motor.ramp_velocity = ramp_velocity;
+
+    // PID loop is based on velocity error
+    float vel_err = ramp_velocity - velocity;
+    float vel_err_diff = (vel_err - winchstat.motor.vel_err) * BOT_TICK_HZ;
+    float vel_err_integral = winchstat.motor.vel_err_integral + vel_err / BOT_TICK_HZ;
+    winchstat.motor.vel_err = vel_err;
+    winchstat.motor.vel_err_diff = vel_err_diff;
+    winchstat.motor.vel_err_integral = vel_err_integral;
+
     // The immediate effect of will_halt is to ramp toward zero.
     // As an additional safeguard against a runaway motor, if
     // we're still trying to halt some time later but the motor PWM
@@ -183,23 +200,6 @@ static void winch_motor_tick()
     } else {
         halt_tick_count = 0;
     }
-
-    // Linear velocity ramping (acceleration limit)
-    float ramp_velocity = winchstat.motor.ramp_velocity;
-    float target_accel = velocity_target - ramp_velocity;
-    float rate_per_tick = command.accel_rate / BOT_TICK_HZ;
-    if (target_accel > rate_per_tick) target_accel = rate_per_tick;
-    if (target_accel < -rate_per_tick) target_accel = -rate_per_tick;
-    ramp_velocity += target_accel;
-    winchstat.motor.ramp_velocity = ramp_velocity;
-
-    // PID loop is based on velocity error
-    float vel_err = ramp_velocity - velocity;
-    float vel_err_diff = (vel_err - winchstat.motor.vel_err) * BOT_TICK_HZ;
-    float vel_err_integral = winchstat.motor.vel_err_integral + vel_err / BOT_TICK_HZ;
-    winchstat.motor.vel_err = vel_err;
-    winchstat.motor.vel_err_diff = vel_err_diff;
-    winchstat.motor.vel_err_integral = vel_err_integral;
 
     // Update PID loop
     float pwm = winchstat.motor.pwm;
