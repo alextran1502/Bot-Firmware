@@ -38,6 +38,7 @@ static struct winch_status winchstat;
 
 static void winch_set_motor_enable(bool en)
 {
+    winchstat.motor.enabled = en;
     MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, en ? GPIO_PIN_1 : 0);
 }
 
@@ -191,6 +192,7 @@ static void winch_motor_tick()
 
             // Reset control loop state
             winchstat.motor.pwm = 0.0f;
+            winchstat.motor.pwm_quant = 0;
             winchstat.motor.ramp_velocity = 0.0f;
             winchstat.motor.vel_err_integral = 0.0f;
 
@@ -231,7 +233,9 @@ static void winch_motor_tick()
 
     // Enable motor driver for the first time only once we get here.
     // Every subsequent time, this is redundant.
-    winch_set_motor_enable(true);
+    if (pwm_quant != 0) {
+        winch_set_motor_enable(true);
+    }
 }
 
 void Winch_QEIIrq()

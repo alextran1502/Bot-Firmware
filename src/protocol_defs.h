@@ -69,7 +69,9 @@ struct winch_sensors {
 
 struct winch_motor_control {
     float pwm;                  // Current motor PWM state, updated by the PID loop, clamped to [-1, 1]
-    int32_t pwm_quant;          // PWM state after quantizing into clock ticks
+    int16_t pwm_quant;          // PWM state after quantizing into clock ticks
+    uint8_t enabled;            // Is the H-bridge enabled? Can be turned off by halt watchdog
+    uint8_t _reserved;          // (spare byte for padding)
     float ramp_velocity;        // Current acting velocity_target due to accel_rate limit
     float vel_err;              // Instantaneous velocity error
     float vel_err_diff;         // Rate of change in velocity error
