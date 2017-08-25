@@ -58,7 +58,7 @@ static void winch_force_sensor_callback(int32_t measure)
     float param = winchstat.command.force_filter_param;
 
     if (param > 0.0f && param < 1.0f) {
-        state += (1.0f - param) * ((float)measure - state);
+        state += param * ((float)measure - state);
     } else {
         state = (float)measure;
     }
@@ -168,8 +168,11 @@ static void winch_motor_tick()
     winchstat.motor.ramp_velocity = ramp_velocity;
 
     // PID loop is based on velocity error
+    float diff_filter_param = winchstat.command.diff_filter_param;
     float vel_err = ramp_velocity - velocity;
-    float vel_err_diff = (vel_err - winchstat.motor.vel_err) * BOT_TICK_HZ;
+    float vel_err_diff_unfiltered = (vel_err - winchstat.motor.vel_err) * BOT_TICK_HZ;
+    float vel_err_diff = winchstat.motor.vel_err_diff;
+    vel_err_diff = diff_filter_param * (vel_err_diff_unfiltered - vel_err_diff);
     float vel_err_integral = winchstat.motor.vel_err_integral + vel_err / BOT_TICK_HZ;
     winchstat.motor.vel_err = vel_err;
     winchstat.motor.vel_err_diff = vel_err_diff;
@@ -194,6 +197,7 @@ static void winch_motor_tick()
             winchstat.motor.pwm = 0.0f;
             winchstat.motor.pwm_quant = 0;
             winchstat.motor.ramp_velocity = 0.0f;
+            winchstat.motor.vel_err_diff = 0.0f;
             winchstat.motor.vel_err_integral = 0.0f;
 
             // Skip the control loop until we have a nonzero command
