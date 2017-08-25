@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -26,11 +27,24 @@
 // Watchdog for incoming commands; ramp motor to zero when controller disappears
 #define MAX_TICKS_SINCE_LAST_COMMAND    2
 
+// Watchdog for the HX711 force sensor and its associated IRQ, also want to make
+// sure it isn't running in slow mode (10 Hz) but is more like 80 Hz.
+#define MAX_TICKS_SINCE_FORCE_READING   (BOT_TICK_HZ / 25)
+
+// Detect position sensor jam, motor drive failure, or anything else that would
+// cause PWM to be above a threshold while motion is below for a while.
+#define JAM_PWM_THRESHOLD               0.3
+#define JAM_VELOCITY_THRESHOLD          800.0
+#define JAM_DURATION_THRESHOLD          (BOT_TICK_HZ / 10)
+
 // If we've been commanding the motor to zero velocity for this many ticks and the
 // motor output still isn't zero, disable the motor driver. This is another safeguard
 // against a runaway motor in case the control loop parameters are bad and we're
 // hitting another limit, plus it lets us put the brakes on more quickly if we must.
-#define MOTOR_HALT_LATENCY_TICKS        (BOT_TICK_HZ / 4)
+#define MOTOR_HALT_LATENCY_TICKS        (BOT_TICK_HZ / 3)
+
+// How long to keep halted after a halt/jam condition
+#define MOTOR_HALT_RESTART_DELAY        (BOT_TICK_HZ / 2)
 
 
 static uint32_t motor_pwm_period;
@@ -120,99 +134,8 @@ void Winch_Command(struct pbuf *p)
     }
 }
 
-static void winch_motor_tick()
+static void winch_pwm_output_set(float pwm)
 {
-    // Local copy of status from global data
-    float velocity = winchstat.sensors.velocity;
-    float force = winchstat.sensors.force.filtered;
-    struct winch_command command = winchstat.command;
-
-    // Determine whether there was a new command since the last tick,
-    // and keep count of how many ticks since the last command.
-    static uint32_t last_command_counter = 0;
-    static uint32_t ticks_without_new_command = 0;
-    uint32_t next_command_counter = winchstat.command_counter;
-    if (last_command_counter != next_command_counter) {
-        last_command_counter = next_command_counter;
-        ticks_without_new_command = 0;
-    } else {
-        ticks_without_new_command++;
-    }
-
-    // The central controller gives us a target velocity that drives a PID loop
-    float velocity_target = command.velocity_target;
-    const float insignificant_velocity = 1e-3;
-    bool will_halt = !(velocity_target < -insignificant_velocity ||
-                       velocity_target > insignificant_velocity);
-
-    // If we haven't seen a new command recently, ramp the motor to zero.
-    if (ticks_without_new_command > MAX_TICKS_SINCE_LAST_COMMAND) {
-        velocity_target = 0.0f;
-        will_halt = true;
-    }
-
-    // Enforce limits on filtered force sensor readings
-    if ((force > command.force_max && velocity_target > 0.0f) ||
-        (force < command.force_min && velocity_target < 0.0f)) {
-        velocity_target = 0.0f;
-        will_halt = true;
-    }
-
-    // Linear velocity ramping (acceleration limit)
-    float ramp_velocity = winchstat.motor.ramp_velocity;
-    float target_accel = velocity_target - ramp_velocity;
-    float rate_per_tick = command.accel_rate / BOT_TICK_HZ;
-    if (target_accel > rate_per_tick) target_accel = rate_per_tick;
-    if (target_accel < -rate_per_tick) target_accel = -rate_per_tick;
-    ramp_velocity += target_accel;
-    winchstat.motor.ramp_velocity = ramp_velocity;
-
-    // PID loop is based on velocity error
-    float diff_filter_param = winchstat.command.diff_filter_param;
-    float vel_err = ramp_velocity - velocity;
-    float vel_err_diff_unfiltered = (vel_err - winchstat.motor.vel_err) * BOT_TICK_HZ;
-    float vel_err_diff = winchstat.motor.vel_err_diff;
-    vel_err_diff = diff_filter_param * (vel_err_diff_unfiltered - vel_err_diff);
-    float vel_err_integral = winchstat.motor.vel_err_integral + vel_err / BOT_TICK_HZ;
-    winchstat.motor.vel_err = vel_err;
-    winchstat.motor.vel_err_diff = vel_err_diff;
-    winchstat.motor.vel_err_integral = vel_err_integral;
-
-    // The immediate effect of will_halt is to ramp toward zero.
-    // As an additional safeguard against a runaway motor, if
-    // we're still trying to halt some time later but the motor PWM
-    // isn't zero, we will force it to zero and disable the motor
-    // driver temporarily.
-
-    static uint32_t halt_tick_count = 0;
-    if (will_halt && winchstat.motor.pwm_quant) {
-        halt_tick_count++;
-        if (halt_tick_count >= MOTOR_HALT_LATENCY_TICKS) {
-
-            // Disable PWM, disable H-bridge
-            MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
-            winch_set_motor_enable(false);
-
-            // Reset control loop state
-            winchstat.motor.pwm = 0.0f;
-            winchstat.motor.pwm_quant = 0;
-            winchstat.motor.ramp_velocity = 0.0f;
-            winchstat.motor.vel_err_diff = 0.0f;
-            winchstat.motor.vel_err_integral = 0.0f;
-
-            // Skip the control loop until we have a nonzero command
-            return;
-        }
-    } else {
-        halt_tick_count = 0;
-    }
-
-    // Update PID loop
-    float pwm = winchstat.motor.pwm;
-    pwm += winchstat.command.pwm_gain_p * vel_err;
-    pwm += winchstat.command.pwm_gain_i * vel_err_integral;
-    pwm += winchstat.command.pwm_gain_d * vel_err_diff;
-
     // Final stored PWM state is clamped to [-1, 1]
     pwm = pwm > -1.0f ? pwm : -1.0f;
     pwm = pwm < 1.0f ? pwm : 1.0f;
@@ -239,6 +162,154 @@ static void winch_motor_tick()
     // Every subsequent time, this is redundant.
     if (pwm_quant != 0) {
         winch_set_motor_enable(true);
+    }
+}
+
+static void winch_pwm_halt()
+{
+    // Disable PWM, disable H-bridge
+    MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
+    winch_set_motor_enable(false);
+
+    // Reset control loop state
+    winchstat.motor.pwm = 0.0f;
+    winchstat.motor.pwm_quant = 0;
+    winchstat.motor.ramp_velocity = 0.0f;
+    winchstat.motor.vel_err_diff = 0.0f;
+    winchstat.motor.vel_err_integral = 0.0f;
+}
+
+static bool winch_command_timeout_is_expired()
+{
+    // Determine whether there was a new command since the last tick,
+    // and keep count of how many ticks since the last command.
+    static uint32_t last_command_counter = 0;
+    static uint32_t ticks_without_new_command = 0;
+    uint32_t next_command_counter = winchstat.command_counter;
+    if (last_command_counter != next_command_counter) {
+        last_command_counter = next_command_counter;
+        ticks_without_new_command = 0;
+    } else {
+        ticks_without_new_command++;
+    }
+
+    return ticks_without_new_command > MAX_TICKS_SINCE_LAST_COMMAND;
+}
+
+static bool winch_force_timeout_is_expired()
+{
+    // Keep track of how long it's been since the last force measure,
+    // so we can halt if the force sensor isn't working. For this purpose
+    // we also avoid resetting the timer any time we notice the last
+    // reading was zero, since we may get a stream of zero readings
+    // if the clock line is good but data comes loose.
+
+    static uint32_t last_force_counter = 0;
+    static uint32_t ticks_without_force_update = 0;
+    int32_t latest_measure = winchstat.sensors.force.measure;
+    uint32_t next_force_counter = winchstat.sensors.force.counter;
+
+    if (next_force_counter != last_force_counter && latest_measure != 0) {
+        last_force_counter = next_force_counter;
+        ticks_without_force_update = 0;
+    } else {
+        ticks_without_force_update++;
+    }
+
+    return ticks_without_force_update > MAX_TICKS_SINCE_FORCE_READING;
+}
+
+static bool is_velocity_near_zero(float v)
+{
+    return fabsf(v) < 1e-3;
+}
+
+static bool winch_force_out_of_range()
+{
+    float velocity_target = winchstat.command.velocity_target;
+    float force = winchstat.sensors.force.filtered;
+
+    return (force > winchstat.command.force_max && velocity_target > 0.0f) ||
+           (force < winchstat.command.force_min && velocity_target < 0.0f);
+}
+
+static bool winch_needs_to_halt(float velocity_target) {
+    // If we're trying to stop the motor but the control loop is sluggish or broken,
+    // turn off the driver and reset all PID state and stay off until the command
+    // becomes nonzero again.
+
+    static uint32_t halt_tick_count = 0;
+    if (winchstat.motor.pwm_quant && is_velocity_near_zero(velocity_target)) {
+        halt_tick_count++;
+    } else {
+        halt_tick_count = 0;
+    }
+    return halt_tick_count >= MOTOR_HALT_LATENCY_TICKS;
+}
+
+static bool winch_jam_detected() {
+    // If we're giving the motor power but it isn't moving (much), something
+    // is probably really wrong and we should stop.
+
+    static uint32_t jam_tick_count = 0;
+    if (fabsf(winchstat.motor.pwm) > JAM_PWM_THRESHOLD &&
+        fabsf(winchstat.sensors.velocity) < JAM_VELOCITY_THRESHOLD) {
+        jam_tick_count++;
+    } else {
+        jam_tick_count = 0;
+    }
+    return jam_tick_count >= JAM_DURATION_THRESHOLD;
+}
+
+static void winch_motor_tick()
+{
+    // Target velocity from the controller; we might override it to zero if something's wrong
+    float velocity_target = winchstat.command.velocity_target;
+
+    if (winch_force_timeout_is_expired()) velocity_target = 0.0f;
+    if (winch_command_timeout_is_expired()) velocity_target = 0.0f;
+    if (winch_force_out_of_range()) velocity_target = 0.0f;
+
+    // Linear velocity ramping (acceleration limit)
+    float ramp_velocity = winchstat.motor.ramp_velocity;
+    float target_accel = velocity_target - ramp_velocity;
+    float rate_per_tick = winchstat.command.accel_rate / BOT_TICK_HZ;
+    if (target_accel > rate_per_tick) target_accel = rate_per_tick;
+    if (target_accel < -rate_per_tick) target_accel = -rate_per_tick;
+    ramp_velocity += target_accel;
+    winchstat.motor.ramp_velocity = ramp_velocity;
+
+    // PID loop is based on velocity error
+    float diff_filter_param = winchstat.command.diff_filter_param;
+    float vel_err = ramp_velocity - winchstat.sensors.velocity;
+    float vel_err_diff_unfiltered = (vel_err - winchstat.motor.vel_err) * BOT_TICK_HZ;
+    float vel_err_diff = winchstat.motor.vel_err_diff;
+    vel_err_diff = diff_filter_param * (vel_err_diff_unfiltered - vel_err_diff);
+    float vel_err_integral = winchstat.motor.vel_err_integral + vel_err / BOT_TICK_HZ;
+    winchstat.motor.vel_err = vel_err;
+    winchstat.motor.vel_err_diff = vel_err_diff;
+    winchstat.motor.vel_err_integral = vel_err_integral;
+
+    // Error conditions that disable motor output
+    bool is_jammed = winch_jam_detected();
+    bool halting = winch_needs_to_halt(velocity_target);
+
+    // Keep motor output disabled after an error for a short while
+    static uint32_t halt_restart_timer = 0;
+    if (is_jammed || halting) {
+        halt_restart_timer = MOTOR_HALT_RESTART_DELAY;
+    }
+    if (halt_restart_timer) {
+        halt_restart_timer--;
+        winch_pwm_halt();
+
+    } else {
+        // Update PID loop
+        float pwm = winchstat.motor.pwm;
+        pwm += winchstat.command.pwm_gain_p * vel_err;
+        pwm += winchstat.command.pwm_gain_i * vel_err_integral;
+        pwm += winchstat.command.pwm_gain_d * vel_err_diff;
+        winch_pwm_output_set(pwm);
     }
 }
 
