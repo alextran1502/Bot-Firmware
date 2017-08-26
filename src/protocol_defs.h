@@ -54,7 +54,7 @@ struct winch_command {
     float velocity_target;      // Encoder position units per second
     float force_filter_param;   // IIR filter parameter in range [0,1] for force sensor, 0=slow 1=fast
     float force_min;            // Uncalibrated load cell units, no negative motion below
-    float force_max;            // Uncalibrated load cell unitsNo positive motion above this filtered force value
+    float force_max;            // Uncalibrated load cell units, no positive motion above this filtered force value
     float accel_rate;           // Encoder units per second per second for velocity ramp
     float diff_filter_param;    // IIR filter param for velocity rate of change, 0=slow 1=fast
     float pwm_gain_p;           // PWM gain proportional to velocity error
