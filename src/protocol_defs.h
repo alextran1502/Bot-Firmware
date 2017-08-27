@@ -50,16 +50,25 @@ struct force_telemetry {
     uint32_t counter;
 };
 
+struct force_command {
+    float filter_param;         // IIR filter parameter in range [0,1] for force sensor, 0=slow 1=fast
+    float neg_motion_min;       // Uncalibrated load cell units, no negative motion below
+    float pos_motion_max;       // Uncalibrated load cell units, no positive motion above this filtered force value
+    float lockout_below;        // Uncalibrated load cell units, no motion at all below
+    float lockout_above;        // Uncalibrated load cell units, no motion at all above
+};
+
+struct pid_gains {
+    float gain_p;               // PWM strength proportional to position error
+    float gain_i;               // PWM strength proportional to integral of position error
+    float gain_d;               // PWM gain proportional to velocity error
+    float d_filter_param;       // IIR filter parameter in range [0,1] for velocity error, 0=slow 1=fast
+};
+
 struct winch_command {
-    float velocity_target;      // Encoder position units per second
-    float force_filter_param;   // IIR filter parameter in range [0,1] for force sensor, 0=slow 1=fast
-    float force_min;            // Uncalibrated load cell units, no negative motion below
-    float force_max;            // Uncalibrated load cell units, no positive motion above this filtered force value
-    float accel_rate;           // Encoder units per second per second for velocity ramp
-    float diff_filter_param;    // IIR filter param for velocity rate of change, 0=slow 1=fast
-    float pwm_gain_p;           // PWM gain proportional to velocity error
-    float pwm_gain_i;           // PWM gain proportional to integral of velocity error
-    float pwm_gain_d;           // PWM gain proportional to integral of velocity error
+    struct force_command force;
+    struct pid_gains pid;
+    int32_t position;
 };
 
 struct winch_sensors {
@@ -68,15 +77,21 @@ struct winch_sensors {
     float velocity;             // Calculated instantaneous velocity on each tick, in position units per second
 };
 
+struct winch_pwm {
+    float total;                // PWM calculated by the PID loop, clamped to [-1, 1]
+    float p;                    // Just the contribution from proportional gain
+    float i;                    // Just the contribution from integral gain
+    float d;                    // Just the contribution from derivative gain
+    int16_t quant;              // PWM state after quantizing into clock ticks
+    int16_t enabled;            // Is the H-bridge enabled? Can be turned off by halt conditions.
+};
+
 struct winch_motor_control {
-    float pwm;                  // Current motor PWM state, updated by the PID loop, clamped to [-1, 1]
-    int16_t pwm_quant;          // PWM state after quantizing into clock ticks
-    uint8_t enabled;            // Is the H-bridge enabled? Can be turned off by halt watchdog
-    uint8_t _reserved;          // (spare byte for padding)
-    float ramp_velocity;        // Current acting velocity_target due to accel_rate limit
-    float vel_err;              // Instantaneous velocity error
-    float vel_err_diff;         // Rate of change in velocity error (filter state)
-    float vel_err_integral;     // Accumulated integral of the velocity error, reset by halt watchdog
+    struct winch_pwm pwm;
+    int32_t position_err;       // Instantaneous position error
+    float pos_err_integral;     // Accumulated integral of the position error, reset by halt watchdog
+    float vel_err_inst;         // Instantaneous velocity error
+    float vel_err_filtered;     // Low-pass-filtered velocity error
 };
 
 struct winch_status {
