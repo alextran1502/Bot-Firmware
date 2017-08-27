@@ -63,6 +63,7 @@ struct pid_gains {
     float gain_i;               // PWM strength proportional to integral of position error
     float gain_d;               // PWM gain proportional to velocity error
     float d_filter_param;       // IIR filter parameter in range [0,1] for velocity error, 0=slow 1=fast
+    float i_decay_param;        // Exponential decay for the integral parameter, 0=slow 1=fast
 };
 
 struct winch_command {

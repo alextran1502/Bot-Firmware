@@ -271,6 +271,7 @@ static void winch_motor_tick()
 
     // PID loop is based on position error
     float pos_err_integral = winchstat.motor.pos_err_integral + position_err / (float)BOT_TICK_HZ;
+    pos_err_integral -= pos_err_integral * winchstat.command.pid.i_decay_param;
     float vel_err_inst = (position_err - winchstat.motor.position_err) * (float)BOT_TICK_HZ;
     float vel_err_filtered = winchstat.motor.vel_err_filtered;
     vel_err_filtered += (vel_err_inst - vel_err_filtered) * winchstat.command.pid.d_filter_param;
