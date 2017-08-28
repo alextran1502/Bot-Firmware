@@ -266,8 +266,15 @@ static void winch_motor_tick()
 {
     // Update filtered position error
     int32_t position_err = winchstat.command.position - winchstat.sensors.position;
-    int32_t deadband = winchstat.command.pos_err_deadband;
-    bool is_deadband = (position_err > -deadband) && (position_err < deadband);
+    int32_t pos_err_deadband = winchstat.command.deadband.position;
+    int32_t velocity_deadband = winchstat.command.deadband.velocity;
+    float velocity = winchstat.sensors.velocity;
+
+    bool is_deadband = (position_err > -pos_err_deadband)
+                    && (position_err < pos_err_deadband)
+                    && (velocity > -velocity_deadband)
+                    && (velocity < velocity_deadband);
+
     int32_t position_err_with_deadband = is_deadband ? 0 : position_err;
     float pos_err_filtered = winchstat.motor.pos_err_filtered;
     pos_err_filtered += (position_err_with_deadband - pos_err_filtered) * winchstat.command.pid.p_filter_param;
@@ -298,7 +305,7 @@ static void winch_motor_tick()
 
     // Error conditions that disable motor output
     bool is_jammed = winch_jam_detected();
-    bool halting = winch_needs_to_halt(pos_err_filtered);
+    bool halting = winch_needs_to_halt(position_err);
 
     // Keep motor output disabled after an error for a short while
     static uint32_t halt_restart_timer = 0;

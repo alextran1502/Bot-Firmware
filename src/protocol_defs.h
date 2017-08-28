@@ -67,11 +67,16 @@ struct pid_gains {
     float d_filter_param;       // IIR filter parameter in range [0,1] for velocity error, 0=slow 1=fast
 };
 
+struct winch_deadband {
+    int32_t position;           // How close is close enough when stopped?
+    float velocity;             // By "stopped", we mean under this instantaneous velocity
+};
+
 struct winch_command {
+    int32_t position;
     struct force_command force;
     struct pid_gains pid;
-    int32_t position;           // Where are we going?
-    int32_t pos_err_deadband;   // How close is close enough?
+    struct winch_deadband deadband;
 };
 
 struct winch_sensors {
