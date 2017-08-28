@@ -70,7 +70,8 @@ struct pid_gains {
 struct winch_command {
     struct force_command force;
     struct pid_gains pid;
-    int32_t position;
+    int32_t position;           // Where are we going?
+    int32_t pos_err_deadband;   // How close is close enough?
 };
 
 struct winch_sensors {

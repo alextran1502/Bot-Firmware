@@ -266,8 +266,11 @@ static void winch_motor_tick()
 {
     // Update filtered position error
     int32_t position_err = winchstat.command.position - winchstat.sensors.position;
+    int32_t deadband = winchstat.command.pos_err_deadband;
+    bool is_deadband = (position_err > -deadband) && (position_err < deadband);
+    int32_t position_err_with_deadband = is_deadband ? 0 : position_err;
     float pos_err_filtered = winchstat.motor.pos_err_filtered;
-    pos_err_filtered += (position_err - pos_err_filtered) * winchstat.command.pid.p_filter_param;
+    pos_err_filtered += (position_err_with_deadband - pos_err_filtered) * winchstat.command.pid.p_filter_param;
 
     bool force_timeout = winch_force_timeout_is_expired();
     bool cmd_timeout = winch_command_timeout_is_expired();
