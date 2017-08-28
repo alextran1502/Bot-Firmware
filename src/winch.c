@@ -178,6 +178,7 @@ static void winch_pwm_halt()
     winchstat.motor.pwm.d = 0.0f;
     winchstat.motor.pwm.quant = 0;
     winchstat.motor.position_err = 0;
+    winchstat.motor.pos_err_filtered = 0.0f;
     winchstat.motor.pos_err_integral = 0.0f;
     winchstat.motor.vel_err_inst = 0.0f;
     winchstat.motor.vel_err_filtered = 0.0f;
@@ -223,12 +224,12 @@ static bool winch_force_timeout_is_expired()
     return ticks_without_force_update > MAX_TICKS_SINCE_FORCE_READING;
 }
 
-static bool winch_force_out_of_range(int32_t position_err)
+static bool winch_force_out_of_range(float position_err)
 {
     float force = winchstat.sensors.force.filtered;
 
-    return (force > winchstat.command.force.pos_motion_max && position_err > 0) ||
-           (force < winchstat.command.force.neg_motion_min && position_err < 0) ||
+    return (force > winchstat.command.force.pos_motion_max && position_err > 0.0f) ||
+           (force < winchstat.command.force.neg_motion_min && position_err < 0.0f) ||
            (force > winchstat.command.force.lockout_above) ||
            (force < winchstat.command.force.lockout_below);
 }
@@ -263,27 +264,38 @@ static bool winch_jam_detected() {
 
 static void winch_motor_tick()
 {
+    // Update filtered position error
     int32_t position_err = winchstat.command.position - winchstat.sensors.position;
+    float pos_err_filtered = winchstat.motor.pos_err_filtered;
+    pos_err_filtered += (position_err - pos_err_filtered) * winchstat.command.pid.p_filter_param;
 
-    if (winch_force_timeout_is_expired()) position_err = 0;
-    if (winch_command_timeout_is_expired()) position_err = 0;
-    if (winch_force_out_of_range(position_err)) position_err = 0;
+    bool force_timeout = winch_force_timeout_is_expired();
+    bool cmd_timeout = winch_command_timeout_is_expired();
+    bool force_out = winch_force_out_of_range(position_err);
 
-    // PID loop is based on position error
+    if (force_timeout || cmd_timeout || force_out) {
+        position_err = 0;
+        pos_err_filtered = 0.0f;
+    }
+
+    // Integral uses unfiltered position error, since it'll be a low-pass too
     float pos_err_integral = winchstat.motor.pos_err_integral + position_err / (float)BOT_TICK_HZ;
     pos_err_integral -= pos_err_integral * winchstat.command.pid.i_decay_param;
-    float vel_err_inst = (position_err - winchstat.motor.position_err) * (float)BOT_TICK_HZ;
+
+    // Velocity error has a filter, plus it uses filtered position error
+    float vel_err_inst = (pos_err_filtered - winchstat.motor.pos_err_filtered) * (float)BOT_TICK_HZ;
     float vel_err_filtered = winchstat.motor.vel_err_filtered;
     vel_err_filtered += (vel_err_inst - vel_err_filtered) * winchstat.command.pid.d_filter_param;
 
     winchstat.motor.position_err = position_err;
+    winchstat.motor.pos_err_filtered = pos_err_filtered;
     winchstat.motor.pos_err_integral = pos_err_integral;
     winchstat.motor.vel_err_inst = vel_err_inst;
     winchstat.motor.vel_err_filtered = vel_err_filtered;
 
     // Error conditions that disable motor output
     bool is_jammed = winch_jam_detected();
-    bool halting = winch_needs_to_halt(position_err);
+    bool halting = winch_needs_to_halt(pos_err_filtered);
 
     // Keep motor output disabled after an error for a short while
     static uint32_t halt_restart_timer = 0;
@@ -296,7 +308,7 @@ static void winch_motor_tick()
 
     } else {
         // Update PID loop
-        float pwm_p = winchstat.command.pid.gain_p * position_err;
+        float pwm_p = winchstat.command.pid.gain_p * pos_err_filtered;
         float pwm_i = winchstat.command.pid.gain_i * pos_err_integral;
         float pwm_d = winchstat.command.pid.gain_d * vel_err_filtered;
         winchstat.motor.pwm.p = pwm_p;
