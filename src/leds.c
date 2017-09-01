@@ -31,6 +31,13 @@ static struct {
     uint32_t end[(LED_MAX_PIXELS + 31) / 32];
 } led_buffer;
 
+static void led_async_write(void)
+{
+    void *ssi_dr = (void*) (LED_SSI_BASE + SSI_O_DR);
+    MAP_uDMAChannelTransferSet(LED_UDMA, UDMA_MODE_BASIC, &led_buffer, ssi_dr, sizeof led_buffer);
+    MAP_uDMAChannelEnable(LED_UDMA);
+}
+
 void LEDs_Init(uint32_t sysclock_hz)
 {
     memset(&led_buffer.start, 0x00, sizeof led_buffer.start);
@@ -50,6 +57,9 @@ void LEDs_Init(uint32_t sysclock_hz)
     MAP_uDMAChannelAttributeEnable(LED_UDMA, UDMA_ATTR_USEBURST);
     MAP_uDMAChannelControlSet(LED_UDMA, UDMA_SIZE_8 | UDMA_SRC_INC_8 | UDMA_DST_INC_NONE | UDMA_ARB_4);
     MAP_SSIDMAEnable(LED_SSI_BASE, SSI_DMA_TX);
+
+    // The APA102s can power on with arbitrary colors set; refresh them to all-off right away.
+    led_async_write();
 }
 
 static void copy_packet_to_framebuffer(struct pbuf *p)
@@ -68,13 +78,6 @@ static void copy_packet_to_framebuffer(struct pbuf *p)
         }
         p = p->next;
     }
-}
-
-static void led_async_write(void)
-{
-    void *ssi_dr = (void*) (LED_SSI_BASE + SSI_O_DR);
-    MAP_uDMAChannelTransferSet(LED_UDMA, UDMA_MODE_BASIC, &led_buffer, ssi_dr, sizeof led_buffer);
-    MAP_uDMAChannelEnable(LED_UDMA);
 }
 
 void LEDs_Command(struct pbuf *p)
