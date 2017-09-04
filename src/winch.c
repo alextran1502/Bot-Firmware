@@ -289,7 +289,7 @@ static void winch_motor_tick()
     }
 
     // Integral uses unfiltered position error, since it'll be a low-pass too
-    float pos_err_integral = winchstat.motor.pos_err_integral + position_err / (float)BOT_TICK_HZ;
+    float pos_err_integral = winchstat.motor.pos_err_integral + position_err_with_deadband / (float)BOT_TICK_HZ;
     pos_err_integral -= pos_err_integral * winchstat.command.pid.i_decay_param;
 
     // Velocity error has a filter, plus it uses filtered position error
