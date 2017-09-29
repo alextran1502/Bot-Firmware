@@ -20,7 +20,7 @@ Flyer   | B2.5      | PK0 (*AIN16*)     | IR Prox  | Proximity sensor 4 analog i
 Flyer   | B2.6      | PK1 (*AIN17*)     | IR Prox  | Proximity sensor 5 analog input
 Flyer   | B2.7      | PK2 (*AIN18*)     | IR Prox  | Proximity sensor 6 analog input
 Flyer   | B2.8      | PK3 (*AIN19*)     | IR Prox  | Proximity sensor 7 analog input
-Flyer   | C1.5      | PL4 (*T0CCP0*)    | Xband    | Doppler pulse input (R divider for 5V to 3V)
+Flyer   | C1.5      | PL4 (*T0CCP0*)    | Xband    | Doppler pulse input (via 1k resistor)
 Flyer   | C2.5      | PM1               | Lidar    | Enable output 0 (via 1k resistor)
 Flyer   | C2.6      | PM2 (*T3CCP0*)    | Lidar    | PWM input 0
 Flyer   | D2.2      | PM7 (*T5CCP1*)    | Lidar    | PWM input 3
