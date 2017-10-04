@@ -20,7 +20,7 @@
 #include "leds.h"
 
 #define LED_SSI_BASE        SSI2_BASE
-#define LED_CLOCK_HZ        8000000
+#define LED_CLOCK_HZ        2500000
 #define LED_SSI_PERIPH      SYSCTL_PERIPH_SSI2
 #define LED_UDMA            UDMA_CH13_SSI2TX
 #define LED_MAX_PIXELS      200
