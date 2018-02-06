@@ -139,7 +139,7 @@ void Winch_Command(struct pbuf *p)
 
 static void winch_pwm_pid_update()
 {
-    // Update PID from it component parts
+    // Update PID from its component parts
     float pwm_p = winchstat.command.pid.gain_p * winchstat.motor.pos_err_filtered;
     float pwm_i = winchstat.command.pid.gain_i * winchstat.motor.pos_err_integral;
     float pwm_d = winchstat.command.pid.gain_d * winchstat.motor.vel_err_filtered;
