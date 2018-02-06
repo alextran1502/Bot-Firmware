@@ -137,8 +137,22 @@ void Winch_Command(struct pbuf *p)
     }
 }
 
-static void winch_pwm_output_set(float pwm)
+static void winch_pwm_pid_update()
 {
+    // Update PID from it component parts
+    float pwm_p = winchstat.command.pid.gain_p * winchstat.motor.pos_err_filtered;
+    float pwm_i = winchstat.command.pid.gain_i * winchstat.motor.pos_err_integral;
+    float pwm_d = winchstat.command.pid.gain_d * winchstat.motor.vel_err_filtered;
+    winchstat.motor.pwm.p = pwm_p;
+    winchstat.motor.pwm.i = pwm_i;
+    winchstat.motor.pwm.d = pwm_d;
+    float pwm = pwm_p + pwm_i + pwm_d;
+
+    // Now apply +/- bias when >1 count away from zero
+    float pwm_epsilon = 1e-5;
+    if (pwm > pwm_epsilon) pwm += winchstat.command.pwm_bias;
+    if (pwm < -pwm_epsilon) pwm -= winchstat.command.pwm_bias;
+
     // Final stored PWM state is clamped to [-1, 1]
     pwm = pwm > -1.0f ? pwm : -1.0f;
     pwm = pwm < 1.0f ? pwm : 1.0f;
@@ -318,16 +332,8 @@ static void winch_motor_tick()
     if (halt_restart_timer) {
         halt_restart_timer--;
         winch_pwm_halt();
-
     } else {
-        // Update PID loop
-        float pwm_p = winchstat.command.pid.gain_p * pos_err_filtered;
-        float pwm_i = winchstat.command.pid.gain_i * pos_err_integral;
-        float pwm_d = winchstat.command.pid.gain_d * vel_err_filtered;
-        winchstat.motor.pwm.p = pwm_p;
-        winchstat.motor.pwm.i = pwm_i;
-        winchstat.motor.pwm.d = pwm_d;
-        winch_pwm_output_set(pwm_p + pwm_i + pwm_d);
+        winch_pwm_pid_update();
     }
 }
 

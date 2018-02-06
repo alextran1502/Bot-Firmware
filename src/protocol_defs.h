@@ -77,6 +77,7 @@ struct winch_command {
     struct force_command force;
     struct pid_gains pid;
     struct winch_deadband deadband;
+    float pwm_bias;             // Increase magnitude of nonzero PWM values by this amount before quantizing
 };
 
 struct winch_sensors {
