@@ -21,8 +21,10 @@
 #include "winch.h"
 #include "force.h"
 
-// Modulation frequency
-#define MOTOR_PWM_HZ        25000
+// Modulation frequency. Divisor and frequency must be chosen to fit in 16-bit PWM counter.
+#define MOTOR_PWM_HZ        432
+#define PWM_DIVISOR         16
+#define PWM_DIVISOR_FLAG    PWM_SYSCLK_DIV_16
 
 // Watchdog for incoming commands; ramp motor to zero when controller disappears
 #define MAX_TICKS_SINCE_LAST_COMMAND    2
@@ -106,9 +108,10 @@ void Winch_Init(uint32_t sysclock_hz)
     MAP_GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_1 | GPIO_PIN_2);
 
     // Motion control PWM output
-    motor_pwm_period = sysclock_hz / MOTOR_PWM_HZ;
+    motor_pwm_period = sysclock_hz / (PWM_DIVISOR * MOTOR_PWM_HZ);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
+    MAP_PWMClockSet(PWM0_BASE, PWM_DIVISOR_FLAG);
     MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_1, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
     MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, motor_pwm_period);
     MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT | PWM_OUT_3_BIT, false);
