@@ -58,6 +58,12 @@ struct force_command {
     float lockout_above;        // Uncalibrated load cell units, no motion at all above
 };
 
+struct winch_pwm_command {
+    float hz;                   // Requested modulation frequency
+    float minimum;              // Assume absolute values less than this are zero
+    float bias;                 // Increase magnitude by this amount before quantizing
+};
+
 struct pid_gains {
     float gain_p;               // PWM strength proportional to position error
     float gain_i;               // PWM strength proportional to integral of position error
@@ -77,7 +83,7 @@ struct winch_command {
     struct force_command force;
     struct pid_gains pid;
     struct winch_deadband deadband;
-    float pwm_bias;             // Increase magnitude of nonzero PWM values by this amount before quantizing
+    struct winch_pwm_command pwm;
 };
 
 struct winch_sensors {
@@ -86,17 +92,19 @@ struct winch_sensors {
     float velocity;             // Calculated instantaneous velocity on each tick, in position units per second
 };
 
-struct winch_pwm {
+struct winch_pwm_status {
     float total;                // PWM calculated by the PID loop, clamped to [-1, 1]
     float p;                    // Just the contribution from proportional gain
     float i;                    // Just the contribution from integral gain
     float d;                    // Just the contribution from derivative gain
-    int16_t quant;              // PWM state after quantizing into clock ticks
-    int16_t enabled;            // Is the H-bridge enabled? Can be turned off by halt conditions.
+    float hz;                   // Current computed PWM frequency
+    int16_t clocks;             // PWM state after quantizing into clock ticks
+    uint16_t period;            // PWM period in clock ticks
+    uint32_t enabled;           // Is the H-bridge enabled? Can be turned off by halt conditions.
 };
 
 struct winch_motor_control {
-    struct winch_pwm pwm;
+    struct winch_pwm_status pwm;
     int32_t position_err;       // Instantaneous position error
     float pos_err_filtered;     // Low-pass-filtered position error
     float pos_err_integral;     // Accumulated integral of the position error, reset by halt watchdog

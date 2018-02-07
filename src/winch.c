@@ -21,10 +21,10 @@
 #include "winch.h"
 #include "force.h"
 
-// Modulation frequency. Divisor and frequency must be chosen to fit in 16-bit PWM counter.
-#define MOTOR_PWM_HZ        432
 #define PWM_DIVISOR         16
 #define PWM_DIVISOR_FLAG    PWM_SYSCLK_DIV_16
+#define PWM_FREQUENCY_MAX   50000
+#define PWM_PERIOD_MAX      0xFFFF
 
 // Watchdog for incoming commands; ramp motor to zero when controller disappears
 #define MAX_TICKS_SINCE_LAST_COMMAND    2
@@ -48,9 +48,9 @@
 // How long to keep halted after a halt/jam condition
 #define MOTOR_HALT_RESTART_DELAY        (BOT_TICK_HZ / 2)
 
-
-static uint32_t motor_pwm_period;
+static float pwmclock_hz;
 static struct winch_status winchstat;
+
 
 static void winch_set_motor_enable(bool en)
 {
@@ -107,13 +107,15 @@ void Winch_Init(uint32_t sysclock_hz)
     MAP_GPIOPinConfigure(GPIO_PL2_PHB0);
     MAP_GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_1 | GPIO_PIN_2);
 
-    // Motion control PWM output
-    motor_pwm_period = sysclock_hz / (PWM_DIVISOR * MOTOR_PWM_HZ);
+    // Motion control PWM output.
+    // Note about sync: local sync is supplied by default, "no" sync refers to the
+    // separate MAP_PWMSyncUpdate call to synchronize multiple PWM units
+
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
     MAP_PWMClockSet(PWM0_BASE, PWM_DIVISOR_FLAG);
+    pwmclock_hz = sysclock_hz / PWM_DIVISOR;
     MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_1, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
-    MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, motor_pwm_period);
     MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT | PWM_OUT_3_BIT, false);
     MAP_PWMGenEnable(PWM0_BASE, PWM_GEN_1);
     MAP_GPIOPinConfigure(GPIO_PF2_M0PWM2);
@@ -148,28 +150,42 @@ static void winch_pwm_pid_update()
     winchstat.motor.pwm.d = pwm_d;
     float pwm = pwm_p + pwm_i + pwm_d;
 
-    // Now apply +/- bias when >1 count away from zero
-    float pwm_epsilon = 1e-5;
-    if (pwm > pwm_epsilon) pwm += winchstat.command.pwm_bias;
-    if (pwm < -pwm_epsilon) pwm -= winchstat.command.pwm_bias;
+    // Apply bias and minimum
+    if (pwm > winchstat.command.pwm.minimum) {
+        pwm += winchstat.command.pwm.bias;
+    } else if (pwm < -winchstat.command.pwm.minimum) {
+        pwm -= winchstat.command.pwm.bias;
+    } else {
+        pwm = 0.0f;
+    }
 
     // Final stored PWM state is clamped to [-1, 1]
     pwm = pwm > -1.0f ? pwm : -1.0f;
     pwm = pwm < 1.0f ? pwm : 1.0f;
     winchstat.motor.pwm.total = pwm;
 
+    // Compute actual clock period based on requested frequency
+    float hz = winchstat.command.pwm.hz;
+    if (hz > PWM_FREQUENCY_MAX) hz = PWM_FREQUENCY_MAX;
+    uint32_t period = pwmclock_hz / hz + 0.5f;
+    if (period > PWM_PERIOD_MAX) period = PWM_PERIOD_MAX;
+    winchstat.motor.pwm.period = period;
+    winchstat.motor.pwm.hz = pwmclock_hz / period;
+
     // Convert to number of clock ticks
-    int32_t pwm_quant = motor_pwm_period * pwm;
-    winchstat.motor.pwm.quant = pwm_quant;
+    int32_t clocks = roundf(period * pwm);
+    winchstat.motor.pwm.clocks = clocks;
 
     // Drive one or the other H-bridge leg according to sign
-    if (pwm_quant > 0) {
+    if (clocks > 0) {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, pwm_quant);
+        MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, period);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, clocks);
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, true);
-    } else if (pwm_quant < 0) {
+    } else if (clocks < 0) {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
-        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -pwm_quant);
+        MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, period);
+        MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, -clocks);
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
     } else {
         MAP_PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT | PWM_OUT_2_BIT, false);
@@ -177,7 +193,7 @@ static void winch_pwm_pid_update()
 
     // Enable motor driver for the first time only once we get here.
     // Every subsequent time, this is redundant.
-    if (pwm_quant != 0) {
+    if (clocks != 0) {
         winch_set_motor_enable(true);
     }
 }
@@ -193,7 +209,7 @@ static void winch_pwm_halt()
     winchstat.motor.pwm.p = 0.0f;
     winchstat.motor.pwm.i = 0.0f;
     winchstat.motor.pwm.d = 0.0f;
-    winchstat.motor.pwm.quant = 0;
+    winchstat.motor.pwm.clocks = 0;
     winchstat.motor.position_err = 0;
     winchstat.motor.pos_err_filtered = 0.0f;
     winchstat.motor.pos_err_integral = 0.0f;
@@ -257,7 +273,7 @@ static bool winch_needs_to_halt(int32_t position_err) {
     // becomes nonzero again.
 
     static uint32_t halt_tick_count = 0;
-    if (winchstat.motor.pwm.quant && !position_err) {
+    if (winchstat.motor.pwm.clocks && !position_err) {
         halt_tick_count++;
     } else {
         halt_tick_count = 0;
