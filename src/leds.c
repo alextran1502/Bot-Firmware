@@ -24,6 +24,7 @@
 #define LED_SSI_PERIPH      SYSCTL_PERIPH_SSI2
 #define LED_UDMA            UDMA_CH13_SSI2TX
 #define LED_MAX_PIXELS      200
+#define LED_PIXEL_OFF       htonl(0xE0000000)
 
 static struct {
     uint32_t start[1];
@@ -43,7 +44,7 @@ void LEDs_Init(uint32_t sysclock_hz)
     memset(&led_buffer.start, 0x00, sizeof led_buffer.start);
     memset(&led_buffer.end, 0xFF, sizeof led_buffer.end);
     for (unsigned i = 0; i < LED_MAX_PIXELS; i++) {
-        led_buffer.pixels[i] = 0xE0000000;
+        led_buffer.pixels[i] = LED_PIXEL_OFF;
     }
 
     MAP_SysCtlPeripheralEnable(LED_SSI_PERIPH);
@@ -64,19 +65,33 @@ void LEDs_Init(uint32_t sysclock_hz)
 
 static void copy_packet_to_framebuffer(struct pbuf *p)
 {
-    uint8_t *dest = (uint8_t*) &led_buffer.pixels[0];
-    uint8_t *limit = (uint8_t*) &led_buffer.end[0];
+    uint32_t *pixels = led_buffer.pixels;
+    uint8_t *pixel_bytes = (uint8_t*) pixels;
+    uint32_t byte_offset = 0;
+    const uint32_t byte_limit = sizeof led_buffer.pixels;
 
-    while (p && dest < limit) {
+    // Reconstitute a linked list of pbufs in linear form, in the framebuffer.
+    // Realistically all of these packets should be in a single pbuf, but completeness!
+    while (p && byte_offset < byte_limit) {
         uint8_t *data = (uint8_t*) p->payload;
         unsigned len = p->len;
-        while (len && dest < limit) {
-            *dest = *data;
-            dest++;
+        while (len && byte_offset < byte_limit) {
+            pixel_bytes[byte_offset] = *data;
+            byte_offset++;
             data++;
             len--;
         }
         p = p->next;
+    }
+
+    // Overwrite the remainder of the framebuffer, starting after the last complete pixel
+    // written, in order to clear any previous (larger) frames, as well as to avoid sending
+    // padding bytes or incomplete pixels to the hardware.
+
+    uint32_t pixel_offset = byte_offset / sizeof led_buffer.pixels[0];
+    while (pixel_offset < LED_MAX_PIXELS) {
+        pixels[pixel_offset] = LED_PIXEL_OFF;
+        pixel_offset++;
     }
 }
 
