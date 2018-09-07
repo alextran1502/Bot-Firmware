@@ -5,7 +5,7 @@ ROOT=tiva-c
 
 include ${ROOT}/makedefs
 
-CFLAGS+=-g3
+CFLAGS+=-g3 -Wall
 
 VPATH=${ROOT}/boards/ek-tm4c1294xl/drivers
 VPATH+=${ROOT}/third_party/lwip-1.4.1/apps/httpserver_raw
