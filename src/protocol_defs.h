@@ -10,9 +10,11 @@
 #define BOT_MSG_LOOPBACK        0x20        // copy data
 #define BOT_MSG_GIMBAL          0x01        // fygimbal protocol data
 #define BOT_MSG_FLYER_SENSORS   0x02        // struct flyer_sensors
-#define BOT_MSG_WINCH_STATUS    0x03        // struct winch_status
-#define BOT_MSG_WINCH_COMMAND   0x04        // struct winch_command
+//                              0x03           old version of winch_status
+//                              0x04           old version of winch_command
 #define BOT_MSG_LEDS            0x05        // apa102 data, 32 bits/pixel
+#define BOT_MSG_WINCH_STATUS    0x06        // struct winch_status
+#define BOT_MSG_WINCH_COMMAND   0x07        // struct winch_command
 
 struct xband_telemetry {
     uint32_t edge_count;
@@ -74,8 +76,10 @@ struct pid_gains {
 };
 
 struct winch_deadband {
-    int32_t position;           // How close is close enough when stopped?
-    float velocity;             // By "stopped", we mean under this instantaneous velocity
+    int32_t position_center;    // How close is close enough when stopped?
+    int32_t position_width;
+    float velocity_center;      // By "stopped", we mean under this instantaneous velocity
+    float velocity_width;
 };
 
 struct winch_command {

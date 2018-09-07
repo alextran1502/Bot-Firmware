@@ -50,7 +50,7 @@
 
 static float pwmclock_hz;
 static struct winch_status winchstat;
-
+static bool saved_deadband_state;
 
 static void winch_set_motor_enable(bool en)
 {
@@ -299,15 +299,20 @@ static void winch_motor_tick()
 {
     // Update filtered position error
     int32_t position_err = winchstat.command.position - winchstat.sensors.position;
-    int32_t pos_err_deadband = winchstat.command.deadband.position;
-    int32_t velocity_deadband = winchstat.command.deadband.velocity;
     float velocity = winchstat.sensors.velocity;
+
+    int32_t pos_err_deadband = winchstat.command.deadband.position_center;
+    float velocity_deadband = winchstat.command.deadband.velocity_center;
+    int32_t deadband_adjustment_sign = saved_deadband_state ? 1 : -1;
+    pos_err_deadband += deadband_adjustment_sign * winchstat.command.deadband.position_width / 2;
+    velocity_deadband += deadband_adjustment_sign * winchstat.command.deadband.velocity_width / 2.0f;
 
     bool is_deadband = (position_err > -pos_err_deadband)
                     && (position_err < pos_err_deadband)
                     && (velocity > -velocity_deadband)
                     && (velocity < velocity_deadband);
 
+    saved_deadband_state = is_deadband;
     int32_t position_err_with_deadband = is_deadband ? 0 : position_err;
     float pos_err_filtered = winchstat.motor.pos_err_filtered;
     pos_err_filtered += (position_err_with_deadband - pos_err_filtered) * winchstat.command.pid.p_filter_param;
