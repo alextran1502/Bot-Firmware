@@ -297,37 +297,38 @@ static bool winch_jam_detected() {
 
 static void winch_motor_tick()
 {
-    // Update filtered position error
+    // Start with instantaneous position error and velocity
     int32_t position_err = winchstat.command.position - winchstat.sensors.position;
     float velocity = winchstat.sensors.velocity;
 
+    // Filtered position error
+    float pos_err_filtered = winchstat.motor.pos_err_filtered;
+    pos_err_filtered += (position_err - pos_err_filtered) * winchstat.command.pid.p_filter_param;
+
+    // Determine current deadband bounds based on hysteresis
     int32_t pos_err_deadband = winchstat.command.deadband.position_center;
     float velocity_deadband = winchstat.command.deadband.velocity_center;
     int32_t deadband_adjustment_sign = saved_deadband_state ? 1 : -1;
     pos_err_deadband += deadband_adjustment_sign * winchstat.command.deadband.position_width / 2;
     velocity_deadband += deadband_adjustment_sign * winchstat.command.deadband.velocity_width / 2.0f;
 
+    // Deadband adjustment to filtered position
     bool is_deadband = (position_err > -pos_err_deadband)
                     && (position_err < pos_err_deadband)
                     && (velocity > -velocity_deadband)
                     && (velocity < velocity_deadband);
-
     saved_deadband_state = is_deadband;
-    int32_t position_err_with_deadband = is_deadband ? 0 : position_err;
-    float pos_err_filtered = winchstat.motor.pos_err_filtered;
-    pos_err_filtered += (position_err_with_deadband - pos_err_filtered) * winchstat.command.pid.p_filter_param;
 
     bool force_timeout = winch_force_timeout_is_expired();
     bool cmd_timeout = winch_command_timeout_is_expired();
     bool force_out = winch_force_out_of_range(position_err);
 
-    if (force_timeout || cmd_timeout || force_out) {
+    if (is_deadband || force_timeout || cmd_timeout || force_out) {
         position_err = 0;
         pos_err_filtered = 0.0f;
     }
 
-    // Integral uses unfiltered position error, since it'll be a low-pass too
-    float pos_err_integral = winchstat.motor.pos_err_integral + position_err_with_deadband / (float)BOT_TICK_HZ;
+    float pos_err_integral = winchstat.motor.pos_err_integral + pos_err_filtered / (float)BOT_TICK_HZ;
     pos_err_integral -= pos_err_integral * winchstat.command.pid.i_decay_param;
 
     // Velocity error has a filter, plus it uses filtered position error
